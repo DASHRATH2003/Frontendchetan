@@ -9,10 +9,7 @@ export const GalleryProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   const getBackendUrl = () => {
-    // Always use the production URL for deployed site
-    if (window.location.hostname === 'localhost') {
-      return 'http://localhost:5000';
-    }
+    // Always use production URL for deployed site
     return 'https://chetanbackend.onrender.com';
   };
 
@@ -24,14 +21,7 @@ export const GalleryProvider = ({ children }) => {
       const backendUrl = getBackendUrl();
       console.log('Fetching gallery from:', backendUrl);
       
-      const response = await axios.get(`${backendUrl}/api/gallery`, {
-        withCredentials: true,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
+      const response = await axios.get(`${backendUrl}/api/gallery`);
       const galleryData = response.data;
 
       // Process the gallery data and ensure image URLs are absolute
@@ -58,18 +48,7 @@ export const GalleryProvider = ({ children }) => {
       return processedGallery;
     } catch (err) {
       console.error('Error fetching gallery:', err);
-      let errorMessage = 'Failed to load gallery';
-      
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-        errorMessage = err.response.data.message || errorMessage;
-      } else if (err.request) {
-        console.error('Network error - no response received');
-        errorMessage = 'Network error - please check your connection';
-      }
-      
-      setError(errorMessage);
+      setError('Failed to load gallery');
       setGallery([]); // Clear gallery on error
       return null;
     } finally {
@@ -86,7 +65,6 @@ export const GalleryProvider = ({ children }) => {
   const addGalleryItem = async (item) => {
     try {
       setLoading(true);
-      setError(null);
       const backendUrl = getBackendUrl();
 
       // Validate input
@@ -104,36 +82,19 @@ export const GalleryProvider = ({ children }) => {
       formData.append('description', item.description || '');
       formData.append('image', item.imageUrl);
 
-      console.log('Uploading to:', `${backendUrl}/api/gallery`);
-      console.log('Form data:', {
-        title: item.title,
-        description: item.description,
-        imageFile: item.imageUrl.name
-      });
-
       // Upload to backend
       const response = await axios.post(`${backendUrl}/api/gallery`, formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data'
-        },
-        timeout: 10000, // 10 second timeout
-        withCredentials: true // Include credentials
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // Get the new item from the response
-      const newItem = response.data;
-      console.log('Upload successful:', newItem);
-
-      // Refresh the entire gallery to ensure consistency
+      // Refresh the gallery after adding new item
       await fetchGalleryFromBackend();
-
       setError(null);
       return response.data;
-    } catch (error) {
-      console.error('Error adding gallery item:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to add gallery item';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+    } catch (err) {
+      console.error('Error adding gallery item:', err);
+      setError('Failed to add gallery item');
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -146,10 +107,7 @@ export const GalleryProvider = ({ children }) => {
       setError(null);
       const backendUrl = getBackendUrl();
 
-      await axios.delete(`${backendUrl}/api/gallery/${id}`, {
-        timeout: 5000,
-        withCredentials: true
-      });
+      await axios.delete(`${backendUrl}/api/gallery/${id}`);
 
       // Refresh the gallery after deletion
       await fetchGalleryFromBackend();

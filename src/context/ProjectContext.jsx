@@ -12,10 +12,7 @@ export const ProjectProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   const getBackendUrl = () => {
-    // Always use the production URL for deployed site
-    if (window.location.hostname === 'localhost') {
-      return 'http://localhost:5000';
-    }
+    // Always use production URL for deployed site
     return 'https://chetanbackend.onrender.com';
   };
 
@@ -27,18 +24,7 @@ export const ProjectProvider = ({ children }) => {
       const backendUrl = getBackendUrl();
       console.log('Fetching projects from:', backendUrl);
       
-      const response = await axios.get(`${backendUrl}/api/projects`, {
-        withCredentials: true,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.data) {
-        throw new Error('No data received from server');
-      }
-
+      const response = await axios.get(`${backendUrl}/api/projects`);
       const projectsData = response.data;
 
       // Process the projects data
@@ -68,19 +54,7 @@ export const ProjectProvider = ({ children }) => {
       setError(null);
     } catch (err) {
       console.error('Error fetching projects:', err);
-      let errorMessage = 'Failed to load projects';
-      
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-        errorMessage = err.response.data.message || errorMessage;
-      } else if (err.request) {
-        // Network error
-        console.error('Network error - no response received');
-        errorMessage = 'Network error - please check your connection';
-      }
-      
-      setError(errorMessage);
+      setError('Failed to load projects');
       setProjects([]); // Clear projects on error
     } finally {
       setLoading(false);
