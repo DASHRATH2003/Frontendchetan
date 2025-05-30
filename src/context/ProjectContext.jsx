@@ -46,16 +46,8 @@ export const ProjectProvider = ({ children }) => {
   ];
 
   const getBackendUrl = () => {
-    // Check if we're running locally
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
-    // Use localhost:5000 for development, production URL for deployment
-    const url = isLocalhost 
-      ? 'http://localhost:5000'
-      : 'https://chetanbackend.onrender.com';
-    
-    console.log('Using backend URL:', url);
-    return url;
+    // Always use the production URL when deployed
+    return 'https://chetanbackend.onrender.com';
   };
 
   // Function to fetch projects with retry
@@ -72,7 +64,7 @@ export const ProjectProvider = ({ children }) => {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           },
-          timeout: 5000 // 5 second timeout
+          timeout: 10000 // 10 second timeout for production
         });
 
         if (!response.data) {
