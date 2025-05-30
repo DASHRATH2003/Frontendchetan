@@ -52,13 +52,11 @@ export const GalleryProvider = ({ children }) => {
       const response = await axios.get(`${backendUrl}/api/gallery`);
       const galleryData = response.data;
 
-      // If no gallery items found in backend, use default gallery
-      if (!galleryData || galleryData.length === 0) {
-        console.log('No gallery items found in backend, using default gallery');
-        setGallery(defaultGallery);
-        setError(null);
-        return defaultGallery;
+      if (!galleryData || !Array.isArray(galleryData)) {
+        throw new Error('Invalid gallery data received');
       }
+
+      console.log('Received gallery data:', galleryData);
 
       // Process the gallery data and ensure image URLs are absolute
       const processedGallery = galleryData.map(item => {
@@ -66,8 +64,11 @@ export const GalleryProvider = ({ children }) => {
         
         // If the image URL is relative, make it absolute
         if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `${backendUrl}${imageUrl}`;
+          // Remove any double slashes except after http(s):
+          imageUrl = `${backendUrl}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
         }
+
+        console.log(`Processing image URL for ${item.title}:`, imageUrl);
 
         return {
           _id: item._id,
@@ -79,15 +80,15 @@ export const GalleryProvider = ({ children }) => {
         };
       });
 
+      console.log('Processed gallery items:', processedGallery);
       setGallery(processedGallery);
       setError(null);
       return processedGallery;
     } catch (err) {
       console.error('Error fetching gallery:', err);
-      console.log('Using default gallery due to error');
-      setGallery(defaultGallery); // Use default gallery on error
-      setError(null); // Don't show error since we have fallback data
-      return defaultGallery;
+      setError('Failed to load gallery items. Please try again later.');
+      setGallery([]); // Clear gallery on error
+      return null;
     } finally {
       setLoading(false);
     }

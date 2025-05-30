@@ -61,13 +61,11 @@ export const ProjectProvider = ({ children }) => {
       const response = await axios.get(`${backendUrl}/api/projects`);
       const projectsData = response.data;
 
-      // If no projects found in backend, use default projects
-      if (!projectsData || projectsData.length === 0) {
-        console.log('No projects found in backend, using default projects');
-        setProjects(defaultProjects);
-        setError(null);
-        return;
+      if (!projectsData || !Array.isArray(projectsData)) {
+        throw new Error('Invalid projects data received');
       }
+
+      console.log('Received projects data:', projectsData);
 
       // Process the projects data
       const processedProjects = projectsData.map(item => {
@@ -75,8 +73,11 @@ export const ProjectProvider = ({ children }) => {
         
         // If the image URL is relative, make it absolute
         if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `${backendUrl}${imageUrl}`;
+          // Remove any double slashes except after http(s):
+          imageUrl = `${backendUrl}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
         }
+
+        console.log(`Processing image URL for ${item.title}:`, imageUrl);
 
         return {
           _id: item._id,
@@ -96,9 +97,8 @@ export const ProjectProvider = ({ children }) => {
       setError(null);
     } catch (err) {
       console.error('Error fetching projects:', err);
-      console.log('Using default projects due to error');
-      setProjects(defaultProjects); // Use default projects on error
-      setError(null); // Don't show error since we have fallback data
+      setError('Failed to load projects. Please try again later.');
+      setProjects([]); // Clear projects on error
     } finally {
       setLoading(false);
     }
