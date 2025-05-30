@@ -11,6 +11,40 @@ export const ProjectProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Default projects data
+  const defaultProjects = [
+    {
+      _id: '1',
+      title: 'Timepass 2025',
+      description: 'Upcoming project',
+      image: timepass2025,
+      category: 'Feature Film',
+      section: 'Banner',
+      completed: false,
+      year: '2025'
+    },
+    {
+      _id: '2',
+      title: 'Project One',
+      description: 'First major project',
+      image: project1,
+      category: 'Short Film',
+      section: 'Banner',
+      completed: true,
+      year: '2024'
+    },
+    {
+      _id: '3',
+      title: 'Cameo Productions',
+      description: 'Production house project',
+      image: cameo,
+      category: 'Production',
+      section: 'Banner',
+      completed: true,
+      year: '2023'
+    }
+  ];
+
   const getBackendUrl = () => {
     // Always use production URL for deployed site
     return 'https://chetanbackend.onrender.com';
@@ -26,6 +60,14 @@ export const ProjectProvider = ({ children }) => {
       
       const response = await axios.get(`${backendUrl}/api/projects`);
       const projectsData = response.data;
+
+      // If no projects found in backend, use default projects
+      if (!projectsData || projectsData.length === 0) {
+        console.log('No projects found in backend, using default projects');
+        setProjects(defaultProjects);
+        setError(null);
+        return;
+      }
 
       // Process the projects data
       const processedProjects = projectsData.map(item => {
@@ -54,8 +96,9 @@ export const ProjectProvider = ({ children }) => {
       setError(null);
     } catch (err) {
       console.error('Error fetching projects:', err);
-      setError('Failed to load projects');
-      setProjects([]); // Clear projects on error
+      console.log('Using default projects due to error');
+      setProjects(defaultProjects); // Use default projects on error
+      setError(null); // Don't show error since we have fallback data
     } finally {
       setLoading(false);
     }
