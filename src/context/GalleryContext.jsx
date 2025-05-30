@@ -37,8 +37,59 @@ export const GalleryProvider = ({ children }) => {
   ];
 
   const getBackendUrl = () => {
-    // Use the production backend URL
-    return 'https://chetanbackend.onrender.com';
+    // Check if we're running locally
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    // Use localhost:5000 for development, production URL for deployment
+    const url = isLocalhost 
+      ? 'http://localhost:5000'
+      : 'https://chetanbackend.onrender.com';
+    
+    console.log('Using backend URL:', url);
+    return url;
+  };
+
+  // Function to fetch gallery with retry
+  const fetchGalleryWithRetry = async (retries = 3, delay = 2000) => {
+    let lastError;
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        const backendUrl = getBackendUrl();
+        console.log(`Attempt ${i + 1}/${retries} - Fetching gallery from:`, backendUrl);
+        
+        const response = await axios.get(`${backendUrl}/api/gallery`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000 // 5 second timeout
+        });
+
+        if (!response.data) {
+          throw new Error('No data received from API');
+        }
+
+        return response;
+      } catch (err) {
+        lastError = err;
+        console.error(`Attempt ${i + 1} failed:`, {
+          message: err.message,
+          code: err.code,
+          response: err.response?.data
+        });
+        
+        if (i === retries - 1) {
+          break; // Last attempt failed
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    // If we get here, all retries failed
+    throw lastError;
   };
 
   // Function to fetch gallery data from backend
@@ -46,15 +97,9 @@ export const GalleryProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const backendUrl = getBackendUrl();
-      console.log('Fetching gallery from:', backendUrl);
       
-      const response = await axios.get(`${backendUrl}/api/gallery`);
+      const response = await fetchGalleryWithRetry();
       console.log('Raw API response:', response);
-
-      if (!response.data) {
-        throw new Error('No data received from API');
-      }
 
       const galleryData = response.data;
       console.log('Gallery data received:', galleryData);
@@ -84,7 +129,7 @@ export const GalleryProvider = ({ children }) => {
             imageUrl = `/uploads/${imageUrl.replace(/^\/+/, '')}`;
           }
           // Make the URL absolute with backend URL
-          imageUrl = `${backendUrl}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
+          imageUrl = `${getBackendUrl()}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
           console.log('Constructed image URL:', imageUrl);
         }
 
@@ -96,7 +141,7 @@ export const GalleryProvider = ({ children }) => {
           alt: item.title || 'Gallery image',
           timestamp: item.createdAt || Date.now()
         };
-      }).filter(Boolean); // Remove any null items
+      }).filter(Boolean);
 
       console.log('Final processed gallery items:', processedGallery);
       setGallery(processedGallery);
@@ -104,11 +149,6 @@ export const GalleryProvider = ({ children }) => {
     } catch (err) {
       console.error('Error fetching gallery:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Failed to load gallery items';
-      console.error('Error details:', {
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        data: err.response?.data
-      });
       setError(errorMessage);
       setGallery([]); // Clear gallery on error
     } finally {

@@ -46,8 +46,59 @@ export const ProjectProvider = ({ children }) => {
   ];
 
   const getBackendUrl = () => {
-    // Use the production backend URL
-    return 'https://chetanbackend.onrender.com';
+    // Check if we're running locally
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    // Use localhost:5000 for development, production URL for deployment
+    const url = isLocalhost 
+      ? 'http://localhost:5000'
+      : 'https://chetanbackend.onrender.com';
+    
+    console.log('Using backend URL:', url);
+    return url;
+  };
+
+  // Function to fetch projects with retry
+  const fetchProjectsWithRetry = async (retries = 3, delay = 2000) => {
+    let lastError;
+    
+    for (let i = 0; i < retries; i++) {
+      try {
+        const backendUrl = getBackendUrl();
+        console.log(`Attempt ${i + 1}/${retries} - Fetching projects from:`, backendUrl);
+        
+        const response = await axios.get(`${backendUrl}/api/projects`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000 // 5 second timeout
+        });
+
+        if (!response.data) {
+          throw new Error('No data received from API');
+        }
+
+        return response;
+      } catch (err) {
+        lastError = err;
+        console.error(`Attempt ${i + 1} failed:`, {
+          message: err.message,
+          code: err.code,
+          response: err.response?.data
+        });
+        
+        if (i === retries - 1) {
+          break; // Last attempt failed
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    // If we get here, all retries failed
+    throw lastError;
   };
 
   // Function to fetch projects from backend
@@ -55,15 +106,9 @@ export const ProjectProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const backendUrl = getBackendUrl();
-      console.log('Fetching projects from:', backendUrl);
       
-      const response = await axios.get(`${backendUrl}/api/projects`);
+      const response = await fetchProjectsWithRetry();
       console.log('Raw API response:', response);
-
-      if (!response.data) {
-        throw new Error('No data received from API');
-      }
 
       const projectsData = response.data;
       console.log('Projects data received:', projectsData);
@@ -93,7 +138,7 @@ export const ProjectProvider = ({ children }) => {
             imageUrl = `/uploads/${imageUrl.replace(/^\/+/, '')}`;
           }
           // Make the URL absolute with backend URL
-          imageUrl = `${backendUrl}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
+          imageUrl = `${getBackendUrl()}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
           console.log('Constructed image URL:', imageUrl);
         }
 
@@ -107,7 +152,7 @@ export const ProjectProvider = ({ children }) => {
           completed: item.completed || false,
           year: item.year || new Date().getFullYear().toString()
         };
-      }).filter(Boolean); // Remove any null items
+      }).filter(Boolean);
 
       console.log('Final processed projects:', processedProjects);
       setProjects(processedProjects);
@@ -115,11 +160,6 @@ export const ProjectProvider = ({ children }) => {
     } catch (err) {
       console.error('Error fetching projects:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Failed to load projects';
-      console.error('Error details:', {
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        data: err.response?.data
-      });
       setError(errorMessage);
       setProjects([]); // Clear projects on error
     } finally {
