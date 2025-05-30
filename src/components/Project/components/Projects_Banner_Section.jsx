@@ -5,44 +5,53 @@ const Projects_Banner_Section = () => {
   const { projects: allProjects, loading, error } = useContext(ProjectContext);
   const [bannerProjects, setBannerProjects] = useState([]);
 
-  // Helper function to get the full image URL
+  // Helper to get image URL with fallback for relative paths
   const getImageUrl = (imageUrl) => {
     if (!imageUrl) return '';
-    
-    // If it's already an absolute URL, return it as is
+
     if (imageUrl.startsWith('http')) {
       return imageUrl;
     }
 
-    // If it's a relative URL starting with /uploads/, prefix with backend URL
     if (imageUrl.startsWith('/uploads/')) {
       const backendUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:5000' 
-        : process.env.REACT_APP_BACKEND_URL || 'https://your-backend-url.com';
+        : import.meta.env.VITE_BACKEND_URL || 'https://chetanbackend.onrender.com';
       return `${backendUrl}${imageUrl}`;
     }
 
-    // Return the URL as is for other cases
     return imageUrl;
   };
 
   useEffect(() => {
-    // Filter projects for the Banner section
-    const filteredProjects = allProjects.filter(project => project.section === 'Banner');
-    console.log("All projects:", allProjects);
-    console.log("Banner projects:", filteredProjects);
-    setBannerProjects(filteredProjects);
+    if (!allProjects || !Array.isArray(allProjects)) return;
+
+    console.log("✅ All projects from context:", allProjects);
+
+    // Filter for section: "Banner"
+    const filteredProjects = allProjects.filter(
+      (project) => project.section === "Banner"
+    );
+
+    if (filteredProjects.length === 0) {
+      console.warn("⚠️ No projects with section: 'Banner'. Displaying all for now.");
+    }
+
+    setBannerProjects(
+      filteredProjects.length > 0 ? filteredProjects : allProjects // fallback for testing
+    );
   }, [allProjects]);
 
   return (
     <section className="bg-[#faf5fa] py-12 md:py-24">
+      {/* Header */}
       <section className="flex items-center flex-col mb-8">
         <h1 className="text-[#48A77E] text-center font-bold text-3xl md:text-5xl">
           PROJECTS
         </h1>
       </section>
 
-      {/* Projects Section */}
+      {/* Projects Grid */}
       <section className="container mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-8 md:mt-10 px-4">
         {loading ? (
           <div className="col-span-full flex justify-center py-10">
@@ -64,7 +73,7 @@ const Projects_Banner_Section = () => {
                   src={getImageUrl(project.image)}
                   alt={project.title}
                   onError={(e) => {
-                    console.error('Error loading image:', project.image);
+                    console.error('Image failed to load:', project.image);
                     e.target.src = '/placeholder.webp';
                   }}
                 />
@@ -89,13 +98,13 @@ const Projects_Banner_Section = () => {
         )}
       </section>
 
-      {/* Future Projects */}
+      {/* Future Projects Section */}
       <section className="container mx-auto flex flex-col items-center lg:items-start gap-4 md:gap-5 justify-center mt-10 md:mt-14 px-4">
         <h1 className="font-bold uppercase text-xl md:text-2xl mb-4">
           Future Projects
         </h1>
         <p className="text-center lg:text-justify leading-6 max-w-3xl">
-          Chethan's future in filmmaking is filled with exciting possibilities.
+          Chethan&apos;s future in filmmaking is filled with exciting possibilities.
           With several innovative projects in development, he is focused on
           exploring contemporary social issues through high-impact action and
           emotional storytelling. His commitment to pushing boundaries and
@@ -103,7 +112,7 @@ const Projects_Banner_Section = () => {
           work will continue to shape the future of cinema.
         </p>
         <button className="border border-black px-8 md:px-12 py-2 md:py-3 text-lg md:text-xl hover:bg-[#800080] hover:text-white transition duration-300 ease-in-out mt-2 md:mt-4">
-          Let's Work Together
+          Let&apos;s Work Together
         </button>
       </section>
     </section>
