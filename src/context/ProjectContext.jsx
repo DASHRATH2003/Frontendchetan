@@ -59,17 +59,32 @@ export const ProjectProvider = ({ children }) => {
       console.log('Fetching projects from:', backendUrl);
       
       const response = await axios.get(`${backendUrl}/api/projects`);
-      const projectsData = response.data;
+      console.log('Raw API response:', response);
 
-      if (!projectsData || !Array.isArray(projectsData)) {
-        throw new Error('Invalid projects data received');
+      if (!response.data) {
+        throw new Error('No data received from API');
       }
 
-      console.log('Received projects data:', projectsData);
+      const projectsData = response.data;
+      console.log('Projects data received:', projectsData);
+
+      if (!Array.isArray(projectsData)) {
+        console.error('Invalid projects data format:', projectsData);
+        throw new Error('Invalid projects data format received');
+      }
 
       // Process the projects data
       const processedProjects = projectsData.map(item => {
+        if (!item || typeof item !== 'object') {
+          console.error('Invalid project item:', item);
+          return null;
+        }
+
         let imageUrl = item.image;
+        console.log('Processing project:', {
+          title: item.title,
+          originalImageUrl: imageUrl
+        });
         
         // If the image URL is relative, make it absolute
         if (imageUrl && !imageUrl.startsWith('http')) {
@@ -82,12 +97,6 @@ export const ProjectProvider = ({ children }) => {
           console.log('Constructed image URL:', imageUrl);
         }
 
-        console.log(`Processing project ${item.title}:`, {
-          imageUrl,
-          originalImage: item.image,
-          backendUrl
-        });
-
         return {
           _id: item._id,
           title: item.title || 'Untitled',
@@ -96,17 +105,22 @@ export const ProjectProvider = ({ children }) => {
           category: item.category || '',
           section: item.section || 'Banner',
           completed: item.completed || false,
-          year: item.year || new Date().getFullYear().toString(),
-          createdAt: item.createdAt || new Date().toISOString()
+          year: item.year || new Date().getFullYear().toString()
         };
-      });
+      }).filter(Boolean); // Remove any null items
 
-      console.log('Processed projects:', processedProjects);
+      console.log('Final processed projects:', processedProjects);
       setProjects(processedProjects);
       setError(null);
     } catch (err) {
       console.error('Error fetching projects:', err);
-      setError('Failed to load projects. Please try again later.');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to load projects';
+      console.error('Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data
+      });
+      setError(errorMessage);
       setProjects([]); // Clear projects on error
     } finally {
       setLoading(false);

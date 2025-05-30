@@ -50,17 +50,32 @@ export const GalleryProvider = ({ children }) => {
       console.log('Fetching gallery from:', backendUrl);
       
       const response = await axios.get(`${backendUrl}/api/gallery`);
-      const galleryData = response.data;
+      console.log('Raw API response:', response);
 
-      if (!galleryData || !Array.isArray(galleryData)) {
-        throw new Error('Invalid gallery data received');
+      if (!response.data) {
+        throw new Error('No data received from API');
       }
 
-      console.log('Received gallery data:', galleryData);
+      const galleryData = response.data;
+      console.log('Gallery data received:', galleryData);
 
-      // Process the gallery data and ensure image URLs are absolute
+      if (!Array.isArray(galleryData)) {
+        console.error('Invalid gallery data format:', galleryData);
+        throw new Error('Invalid gallery data format received');
+      }
+
+      // Process the gallery data
       const processedGallery = galleryData.map(item => {
+        if (!item || typeof item !== 'object') {
+          console.error('Invalid gallery item:', item);
+          return null;
+        }
+
         let imageUrl = item.image;
+        console.log('Processing gallery item:', {
+          title: item.title,
+          originalImageUrl: imageUrl
+        });
         
         // If the image URL is relative, make it absolute
         if (imageUrl && !imageUrl.startsWith('http')) {
@@ -73,12 +88,6 @@ export const GalleryProvider = ({ children }) => {
           console.log('Constructed image URL:', imageUrl);
         }
 
-        console.log(`Processing gallery item ${item.title}:`, {
-          imageUrl,
-          originalImage: item.image,
-          backendUrl
-        });
-
         return {
           _id: item._id,
           title: item.title || 'Untitled',
@@ -87,17 +96,21 @@ export const GalleryProvider = ({ children }) => {
           alt: item.title || 'Gallery image',
           timestamp: item.createdAt || Date.now()
         };
-      });
+      }).filter(Boolean); // Remove any null items
 
-      console.log('Processed gallery items:', processedGallery);
+      console.log('Final processed gallery items:', processedGallery);
       setGallery(processedGallery);
       setError(null);
-      return processedGallery;
     } catch (err) {
       console.error('Error fetching gallery:', err);
-      setError('Failed to load gallery items. Please try again later.');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to load gallery items';
+      console.error('Error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data
+      });
+      setError(errorMessage);
       setGallery([]); // Clear gallery on error
-      return null;
     } finally {
       setLoading(false);
     }
