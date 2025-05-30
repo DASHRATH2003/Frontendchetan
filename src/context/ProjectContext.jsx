@@ -23,10 +23,22 @@ export const ProjectProvider = ({ children }) => {
   const fetchProjects = async () => {
     try {
       setLoading(true);
+      setError(null);
       const backendUrl = getBackendUrl();
       console.log('Fetching projects from:', backendUrl);
       
-      const response = await axios.get(`${backendUrl}/api/projects`);
+      const response = await axios.get(`${backendUrl}/api/projects`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
       const projectsData = response.data;
 
       // Process the projects data
@@ -56,11 +68,20 @@ export const ProjectProvider = ({ children }) => {
       setError(null);
     } catch (err) {
       console.error('Error fetching projects:', err);
-      setError('Failed to load projects');
+      let errorMessage = 'Failed to load projects';
+      
       if (err.response) {
         console.error('Response data:', err.response.data);
         console.error('Response status:', err.response.status);
+        errorMessage = err.response.data.message || errorMessage;
+      } else if (err.request) {
+        // Network error
+        console.error('Network error - no response received');
+        errorMessage = 'Network error - please check your connection';
       }
+      
+      setError(errorMessage);
+      setProjects([]); // Clear projects on error
     } finally {
       setLoading(false);
     }

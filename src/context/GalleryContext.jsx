@@ -25,19 +25,14 @@ export const GalleryProvider = ({ children }) => {
       console.log('Fetching gallery from:', backendUrl);
       
       const response = await axios.get(`${backendUrl}/api/gallery`, {
-        timeout: 5000, // 5 second timeout
+        withCredentials: true,
         headers: {
           'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Content-Type': 'application/json'
         }
       });
-      
-      if (!response.data) {
-        throw new Error('No data received from server');
-      }
 
       const galleryData = response.data;
-      console.log('Received gallery data:', galleryData);
 
       // Process the gallery data and ensure image URLs are absolute
       const processedGallery = galleryData.map(item => {
@@ -58,14 +53,24 @@ export const GalleryProvider = ({ children }) => {
         };
       });
 
-      console.log('Processed gallery:', processedGallery);
       setGallery(processedGallery);
       setError(null);
       return processedGallery;
-    } catch (error) {
-      console.error('Error fetching gallery from backend:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to load gallery';
+    } catch (err) {
+      console.error('Error fetching gallery:', err);
+      let errorMessage = 'Failed to load gallery';
+      
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+        errorMessage = err.response.data.message || errorMessage;
+      } else if (err.request) {
+        console.error('Network error - no response received');
+        errorMessage = 'Network error - please check your connection';
+      }
+      
       setError(errorMessage);
+      setGallery([]); // Clear gallery on error
       return null;
     } finally {
       setLoading(false);
