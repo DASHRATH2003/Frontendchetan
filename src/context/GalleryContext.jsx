@@ -9,8 +9,8 @@ export const GalleryProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   const getBackendUrl = () => {
+    // Always use the production URL for deployed site
     if (window.location.hostname === 'localhost') {
-      // Try port 5000 first, then 5001 if 5000 fails
       return 'http://localhost:5000';
     }
     return 'https://chetanbackend.onrender.com';

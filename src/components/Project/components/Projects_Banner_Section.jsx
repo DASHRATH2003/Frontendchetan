@@ -13,10 +13,12 @@ const Projects_Banner_Section = () => {
       return imageUrl;
     }
 
+    // Always use the production URL for deployed site
+    const backendUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:5000'
+      : 'https://chetanbackend.onrender.com';
+
     if (imageUrl.startsWith('/uploads/')) {
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : import.meta.env.VITE_BACKEND_URL || 'https://chetanbackend.onrender.com';
       return `${backendUrl}${imageUrl}`;
     }
 

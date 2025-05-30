@@ -12,6 +12,7 @@ export const ProjectProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   const getBackendUrl = () => {
+    // Always use the production URL for deployed site
     if (window.location.hostname === 'localhost') {
       return 'http://localhost:5000';
     }
