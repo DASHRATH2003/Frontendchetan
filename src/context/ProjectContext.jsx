@@ -11,29 +11,44 @@ export const ProjectProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const getBackendUrl = () => {
+    if (window.location.hostname === 'localhost') {
+      return 'http://localhost:5000';
+    }
+    return 'https://chetanbackend.onrender.com';
+  };
+
   // Function to fetch projects from backend
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : process.env.REACT_APP_BACKEND_URL || 'https://your-backend-url.com';
+      const backendUrl = getBackendUrl();
+      console.log('Fetching projects from:', backendUrl);
       
       const response = await axios.get(`${backendUrl}/api/projects`);
       const projectsData = response.data;
 
       // Process the projects data
-      const processedProjects = projectsData.map(item => ({
-        _id: item._id,
-        title: item.title || 'Untitled',
-        description: item.description || '',
-        image: item.image,
-        category: item.category || '',
-        section: item.section || 'Banner',
-        completed: item.completed || false,
-        year: item.year || new Date().getFullYear().toString(),
-        createdAt: item.createdAt || new Date().toISOString()
-      }));
+      const processedProjects = projectsData.map(item => {
+        let imageUrl = item.image;
+        
+        // If the image URL is relative, make it absolute
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          imageUrl = `${backendUrl}${imageUrl}`;
+        }
+
+        return {
+          _id: item._id,
+          title: item.title || 'Untitled',
+          description: item.description || '',
+          image: imageUrl,
+          category: item.category || '',
+          section: item.section || 'Banner',
+          completed: item.completed || false,
+          year: item.year || new Date().getFullYear().toString(),
+          createdAt: item.createdAt || new Date().toISOString()
+        };
+      });
 
       console.log('Processed projects:', processedProjects);
       setProjects(processedProjects);
@@ -41,6 +56,10 @@ export const ProjectProvider = ({ children }) => {
     } catch (err) {
       console.error('Error fetching projects:', err);
       setError('Failed to load projects');
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+      }
     } finally {
       setLoading(false);
     }
@@ -55,9 +74,8 @@ export const ProjectProvider = ({ children }) => {
   const addProject = async (formData) => {
     try {
       setLoading(true);
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : process.env.REACT_APP_BACKEND_URL || 'https://your-backend-url.com';
+      const backendUrl = getBackendUrl();
+      console.log('Adding project to:', backendUrl);
 
       // Upload to backend
       const response = await axios.post(`${backendUrl}/api/projects`, formData, {
@@ -69,6 +87,10 @@ export const ProjectProvider = ({ children }) => {
       return response.data;
     } catch (err) {
       console.error('Error adding project:', err);
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+      }
       throw err;
     } finally {
       setLoading(false);
@@ -79,19 +101,23 @@ export const ProjectProvider = ({ children }) => {
   const updateProject = async ({ _id, formData }) => {
     try {
       setLoading(true);
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : process.env.REACT_APP_BACKEND_URL || 'https://your-backend-url.com';
+      const backendUrl = getBackendUrl();
+      console.log('Updating project at:', backendUrl);
 
       // Update in backend
-      await axios.put(`${backendUrl}/api/projects/${_id}`, formData, {
+      const response = await axios.put(`${backendUrl}/api/projects/${_id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       // Refresh projects list
       await fetchProjects();
+      return response.data;
     } catch (err) {
       console.error('Error updating project:', err);
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+      }
       throw err;
     } finally {
       setLoading(false);
@@ -102,9 +128,8 @@ export const ProjectProvider = ({ children }) => {
   const deleteProject = async (id) => {
     try {
       setLoading(true);
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : process.env.REACT_APP_BACKEND_URL || 'https://your-backend-url.com';
+      const backendUrl = getBackendUrl();
+      console.log('Deleting project from:', backendUrl);
 
       await axios.delete(`${backendUrl}/api/projects/${id}`);
       
@@ -112,6 +137,10 @@ export const ProjectProvider = ({ children }) => {
       await fetchProjects();
     } catch (err) {
       console.error('Error deleting project:', err);
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+      }
       throw err;
     } finally {
       setLoading(false);
@@ -122,9 +151,7 @@ export const ProjectProvider = ({ children }) => {
   const deleteAllProjects = async () => {
     try {
       setLoading(true);
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : process.env.REACT_APP_BACKEND_URL || 'https://your-backend-url.com';
+      const backendUrl = getBackendUrl();
 
       await axios.delete(`${backendUrl}/api/projects/all`);
       setProjects([]); // Clear the local state
