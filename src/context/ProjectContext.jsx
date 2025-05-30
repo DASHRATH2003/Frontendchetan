@@ -46,7 +46,7 @@ export const ProjectProvider = ({ children }) => {
   ];
 
   const getBackendUrl = () => {
-    // Always use production URL for deployed site
+    // Use the production backend URL
     return 'https://chetanbackend.onrender.com';
   };
 
@@ -73,11 +73,20 @@ export const ProjectProvider = ({ children }) => {
         
         // If the image URL is relative, make it absolute
         if (imageUrl && !imageUrl.startsWith('http')) {
-          // Remove any double slashes except after http(s):
+          // Ensure the path starts with /uploads/
+          if (!imageUrl.startsWith('/uploads/')) {
+            imageUrl = `/uploads/${imageUrl.replace(/^\/+/, '')}`;
+          }
+          // Make the URL absolute with backend URL
           imageUrl = `${backendUrl}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
+          console.log('Constructed image URL:', imageUrl);
         }
 
-        console.log(`Processing image URL for ${item.title}:`, imageUrl);
+        console.log(`Processing project ${item.title}:`, {
+          imageUrl,
+          originalImage: item.image,
+          backendUrl
+        });
 
         return {
           _id: item._id,
