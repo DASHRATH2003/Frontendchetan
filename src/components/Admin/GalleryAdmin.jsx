@@ -13,78 +13,29 @@ const getImageSource = (imageUrl) => {
     return '/src/assets/GalleryImages/1.webp';
   }
 
-  // If it's a direct URL or path, return it
-  if (!imageUrl.startsWith('img:')) {
-    // Check if it's a relative path to assets
-    if (imageUrl.startsWith('/src/assets/')) {
-      console.log("Admin - Image URL is a relative path to assets");
-      return imageUrl;
-    }
-
-    // Check if it's a data URL
-    if (imageUrl.startsWith('data:')) {
-      console.log("Admin - Image URL is a data URL");
-      return imageUrl;
-    }
-
-    // Check if it's an absolute URL
-    if (imageUrl.startsWith('http')) {
-      console.log("Admin - Image URL is an absolute URL");
-      return imageUrl;
-    }
-
-    // For uploads, prefix with backend URL
-    if (imageUrl.startsWith('/uploads/')) {
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : process.env.REACT_APP_BACKEND_URL || 'https://your-backend-url.com';
-      console.log("Admin - Image URL is an upload, prefixing with backend URL");
-      return `${backendUrl}${imageUrl}`;
-    }
-
-    // For other paths, assume it's a relative path
-    console.log("Admin - Image URL is a direct path, returning as is");
+  // If it's a data URL, return it directly
+  if (imageUrl.startsWith('data:')) {
+    console.log("Admin - Image URL is a data URL");
     return imageUrl;
   }
 
-  // Try to get the data URL from our image storage utility
-  try {
-    const key = imageUrl.substring(4); // Remove the 'img:' prefix
-    console.log("Admin - Looking for image with key:", key);
-
-    // First check localStorage directly
-    const directImageData = localStorage.getItem(`gallery-img-${key}`);
-    if (directImageData) {
-      console.log("Admin - Image data found directly in localStorage");
-      return directImageData;
-    }
-
-    // Then try the image storage utility
-    const imageResult = imageStorage.getImage(key);
-    console.log("Admin - Image found in storage utility:", !!imageResult);
-
-    if (imageResult && imageResult.data) {
-      console.log("Admin - Image data retrieved successfully from storage utility");
-      return imageResult.data;
-    }
-
-    // Check if this is a default gallery item
-    if (key.startsWith('default-')) {
-      const defaultIndex = parseInt(key.split('-')[1]);
-      if (defaultIndex >= 1 && defaultIndex <= 4) {
-        console.log(`Admin - Using built-in default image for key: ${key}`);
-        return `/src/assets/GalleryImages/${defaultIndex}.webp`;
-      }
-    }
-
-    console.log("Admin - Image not found in storage");
-  } catch (error) {
-    console.error("Admin - Error retrieving image:", error);
+  // If it's an absolute URL, return it as is
+  if (imageUrl.startsWith('http')) {
+    console.log("Admin - Image URL is an absolute URL");
+    return imageUrl;
   }
 
-  console.log("Admin - Using fallback image");
-  // Fallback to a default image if we couldn't get the stored image
-  return '/src/assets/GalleryImages/1.webp';
+  // For uploads or relative paths, construct the full URL
+  const backendUrl = window.location.hostname === 'localhost' 
+    ? 'http://localhost:5000' 
+    : 'https://chetanbackend.onrender.com';
+
+  // Clean up the path
+  const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+  const finalPath = `/uploads/${cleanPath}`;
+  
+  console.log("Admin - Constructed image URL:", `${backendUrl}${finalPath}`);
+  return `${backendUrl}${finalPath}`;
 };
 
 const GalleryAdmin = () => {
@@ -142,63 +93,38 @@ const GalleryAdmin = () => {
     }
   }, [gallery]);
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    
-    // Validate file type
-    if (selectedFile && !selectedFile.type.startsWith('image/')) {
-      setError('Please select a valid image file');
-      setFile(null);
-      setPreview('');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (selectedFile && selectedFile.size > 5 * 1024 * 1024) {
-      setError('Image size should be less than 5MB');
-      setFile(null);
-      setPreview('');
-      return;
-    }
-
-    setFile(selectedFile);
-    setError(null);
-
-    // Create preview
-    if (selectedFile) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
-      reader.readAsDataURL(selectedFile);
-    } else {
-      setPreview('');
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!file) {
-      setError('Please select an image to upload');
-      return;
-    }
-
-    if (!title.trim()) {
-      setError('Please enter a title');
-      return;
-    }
 
     try {
       setUploading(true);
       setError(null);
+      setSuccess('');
+
+      if (!file) {
+        setError('Please select an image to upload');
+        return;
+      }
+
+      if (!title.trim()) {
+        setError('Please enter a title');
+        return;
+      }
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('title', title.trim());
+      formData.append('description', description.trim());
+      formData.append('image', file);
+
+      console.log('Uploading file:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
 
       // Upload using context function
-      await addGalleryItem({
-        title: title.trim(),
-        description: description.trim(),
-        imageUrl: file
-      });
+      await addGalleryItem(formData);
 
       setSuccess('Image uploaded successfully!');
       setTitle('');
@@ -213,10 +139,58 @@ const GalleryAdmin = () => {
 
     } catch (err) {
       console.error('Upload error:', err);
-      setError(err.response?.data?.message || 'Failed to upload image');
+      setError(err.response?.data?.message || err.message || 'Failed to upload image');
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    
+    if (!selectedFile) {
+      setError('No file selected');
+      setFile(null);
+      setPreview('');
+      return;
+    }
+    
+    // Validate file type
+    if (!selectedFile.type.startsWith('image/')) {
+      setError('Please select a valid image file');
+      setFile(null);
+      setPreview('');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      setError('Image size should be less than 5MB');
+      setFile(null);
+      setPreview('');
+      return;
+    }
+
+    console.log('Selected file:', {
+      name: selectedFile.name,
+      type: selectedFile.type,
+      size: selectedFile.size
+    });
+
+    setFile(selectedFile);
+    setError(null);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreview(reader.result);
+    };
+    reader.onerror = () => {
+      setError('Error reading file');
+      setFile(null);
+      setPreview('');
+    };
+    reader.readAsDataURL(selectedFile);
   };
 
   const handleDelete = async (id) => {

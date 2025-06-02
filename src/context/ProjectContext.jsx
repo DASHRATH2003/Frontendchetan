@@ -46,8 +46,33 @@ export const ProjectProvider = ({ children }) => {
   ];
 
   const getBackendUrl = () => {
-    // Always use the production URL when deployed
-    return 'https://chetanbackend.onrender.com';
+    return window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : 'https://chetanbackend.onrender.com';
+  };
+
+  const processImageUrl = (imageUrl) => {
+    if (!imageUrl) {
+      console.log('No image URL provided');
+      return '/placeholder.webp';
+    }
+
+    // If it's already a full URL, return it as is
+    if (imageUrl.startsWith('http')) {
+      console.log('Using full URL:', imageUrl);
+      return imageUrl;
+    }
+
+    // For uploads or relative paths, construct the full URL
+    const backendUrl = getBackendUrl();
+    
+    // Clean up the path and ensure it starts with /uploads/
+    const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+    const finalPath = `/uploads/${cleanPath}`;
+    const fullUrl = `${backendUrl}${finalPath}`;
+    
+    console.log('Constructed image URL:', fullUrl);
+    return fullUrl;
   };
 
   // Function to fetch projects with retry
@@ -64,7 +89,7 @@ export const ProjectProvider = ({ children }) => {
             'Accept': 'application/json',
             'Content-Type': 'application/json'
           },
-          timeout: 10000 // 10 second timeout for production
+          timeout: 10000 // 10 second timeout
         });
 
         if (!response.data) {
@@ -93,12 +118,11 @@ export const ProjectProvider = ({ children }) => {
     throw lastError;
   };
 
-  // Function to fetch projects from backend
   const fetchProjects = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetchProjectsWithRetry();
       console.log('Raw API response:', response);
 
@@ -111,38 +135,18 @@ export const ProjectProvider = ({ children }) => {
       }
 
       // Process the projects data
-      const processedProjects = projectsData.map(item => {
-        if (!item || typeof item !== 'object') {
-          console.error('Invalid project item:', item);
+      const processedProjects = projectsData.map(project => {
+        if (!project || typeof project !== 'object') {
+          console.error('Invalid project item:', project);
           return null;
         }
 
-        let imageUrl = item.image;
-        console.log('Processing project:', {
-          title: item.title,
-          originalImageUrl: imageUrl
-        });
+        // Use the processImageUrl function for consistent URL handling
+        const imageUrl = processImageUrl(project.image);
         
-        // If the image URL is relative, make it absolute
-        if (imageUrl && !imageUrl.startsWith('http')) {
-          // Ensure the path starts with /uploads/
-          if (!imageUrl.startsWith('/uploads/')) {
-            imageUrl = `/uploads/${imageUrl.replace(/^\/+/, '')}`;
-          }
-          // Make the URL absolute with backend URL
-          imageUrl = `${getBackendUrl()}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
-          console.log('Constructed image URL:', imageUrl);
-        }
-
         return {
-          _id: item._id,
-          title: item.title || 'Untitled',
-          description: item.description || '',
-          image: imageUrl,
-          category: item.category || '',
-          section: item.section || 'Banner',
-          completed: item.completed || false,
-          year: item.year || new Date().getFullYear().toString()
+          ...project,
+          imageUrl: imageUrl
         };
       }).filter(Boolean);
 
@@ -159,83 +163,111 @@ export const ProjectProvider = ({ children }) => {
     }
   };
 
-  // Initialize by fetching projects from backend
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  // Add a new project
+  // Add project with better error handling
   const addProject = async (formData) => {
     try {
       setLoading(true);
+      setError(null);
       const backendUrl = getBackendUrl();
-      console.log('Adding project to:', backendUrl);
+
+      // Validate input
+      const title = formData.get('title');
+      const image = formData.get('image');
+
+      if (!title) {
+        throw new Error('Title is required');
+      }
+
+      if (!image || !(image instanceof File)) {
+        throw new Error('Valid image file is required');
+      }
+
+      console.log('Uploading project:', {
+        title: formData.get('title'),
+        description: formData.get('description'),
+        category: formData.get('category'),
+        section: formData.get('section'),
+        completed: formData.get('completed'),
+        year: formData.get('year'),
+        fileName: image.name,
+        fileType: image.type,
+        fileSize: image.size
+      });
 
       // Upload to backend
       const response = await axios.post(`${backendUrl}/api/projects`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // Refresh projects list
+      console.log('Upload response:', response.data);
+
+      // Add the new project to the local state immediately
+      const newProject = {
+        ...response.data,
+        imageUrl: processImageUrl(response.data.image)
+      };
+      
+      setProjects(prevProjects => [newProject, ...prevProjects]);
+
+      // Also refresh the full list to ensure consistency
       await fetchProjects();
+      
+      setError(null);
       return response.data;
     } catch (err) {
       console.error('Error adding project:', err);
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-      }
-      throw err;
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to add project';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Update an existing project
-  const updateProject = async ({ _id, formData }) => {
+  // Update project
+  const updateProject = async (id, projectData) => {
     try {
       setLoading(true);
       const backendUrl = getBackendUrl();
-      console.log('Updating project at:', backendUrl);
 
-      // Update in backend
-      const response = await axios.put(`${backendUrl}/api/projects/${_id}`, formData, {
+      const formData = new FormData();
+      Object.keys(projectData).forEach(key => {
+        if (key === 'image' && projectData[key] instanceof File) {
+          formData.append('image', projectData[key]);
+        } else if (key !== 'image') {
+          formData.append(key, projectData[key]);
+        }
+      });
+
+      const response = await axios.put(`${backendUrl}/api/projects/${id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // Refresh projects list
-      await fetchProjects();
+      await fetchProjects(); // Refresh the projects list
       return response.data;
     } catch (err) {
       console.error('Error updating project:', err);
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-      }
-      throw err;
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update project';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Delete a project
+  // Delete project
   const deleteProject = async (id) => {
     try {
       setLoading(true);
       const backendUrl = getBackendUrl();
-      console.log('Deleting project from:', backendUrl);
 
       await axios.delete(`${backendUrl}/api/projects/${id}`);
-      
-      // Refresh projects list
-      await fetchProjects();
+      await fetchProjects(); // Refresh the projects list
     } catch (err) {
       console.error('Error deleting project:', err);
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-      }
-      throw err;
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete project';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -263,6 +295,10 @@ export const ProjectProvider = ({ children }) => {
   const getProjectsBySection = (section) => {
     return projects.filter(project => project.section === section);
   };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
 
   return (
     <ProjectContext.Provider

@@ -37,8 +37,33 @@ export const GalleryProvider = ({ children }) => {
   ];
 
   const getBackendUrl = () => {
-    // Always use the production URL when deployed
-    return 'https://chetanbackend.onrender.com';
+    return window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : 'https://chetanbackend.onrender.com';
+  };
+
+  const processImageUrl = (imageUrl) => {
+    if (!imageUrl) {
+      console.log('No image URL provided');
+      return '/placeholder.webp';
+    }
+
+    // If it's already a full URL, return it as is
+    if (imageUrl.startsWith('http')) {
+      console.log('Using full URL:', imageUrl);
+      return imageUrl;
+    }
+
+    // For uploads or relative paths, construct the full URL
+    const backendUrl = getBackendUrl();
+    
+    // Clean up the path and ensure it starts with /uploads/
+    const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+    const finalPath = `/uploads/${cleanPath}`;
+    const fullUrl = `${backendUrl}${finalPath}`;
+    
+    console.log('Constructed image URL:', fullUrl);
+    return fullUrl;
   };
 
   // Function to fetch gallery with retry
@@ -108,27 +133,14 @@ export const GalleryProvider = ({ children }) => {
           return null;
         }
 
-        let imageUrl = item.image;
-        console.log('Processing gallery item:', {
-          title: item.title,
-          originalImageUrl: imageUrl
-        });
+        // Use the processImageUrl function for consistent URL handling
+        const imageUrl = processImageUrl(item.image);
         
-        // If the image URL is relative, make it absolute
-        if (imageUrl && !imageUrl.startsWith('http')) {
-          // Ensure the path starts with /uploads/
-          if (!imageUrl.startsWith('/uploads/')) {
-            imageUrl = `/uploads/${imageUrl.replace(/^\/+/, '')}`;
-          }
-          // Make the URL absolute with backend URL
-          imageUrl = `${getBackendUrl()}${imageUrl}`.replace(/([^:]\/)\/+/g, '$1');
-          console.log('Constructed image URL:', imageUrl);
-        }
-
         return {
           _id: item._id,
           title: item.title || 'Untitled',
           description: item.description || '',
+          image: item.image,
           imageUrl: imageUrl,
           alt: item.title || 'Gallery image',
           timestamp: item.createdAt || Date.now()
@@ -153,40 +165,55 @@ export const GalleryProvider = ({ children }) => {
     fetchGalleryFromBackend();
   }, []);
 
-  // Add gallery item
-  const addGalleryItem = async (item) => {
+  // Add gallery item with better error handling
+  const addGalleryItem = async (formData) => {
     try {
       setLoading(true);
+      setError(null);
       const backendUrl = getBackendUrl();
 
       // Validate input
-      if (!item.title) {
+      const title = formData.get('title');
+      const image = formData.get('image');
+
+      if (!title) {
         throw new Error('Title is required');
       }
 
-      if (!item.imageUrl || !(item.imageUrl instanceof File)) {
+      if (!image || !(image instanceof File)) {
         throw new Error('Valid image file is required');
       }
 
-      // Create form data for the upload
-      const formData = new FormData();
-      formData.append('title', item.title);
-      formData.append('description', item.description || '');
-      formData.append('image', item.imageUrl);
+      console.log('Uploading gallery item:', {
+        title: formData.get('title'),
+        description: formData.get('description'),
+        fileName: image.name,
+        fileType: image.type,
+        fileSize: image.size
+      });
 
       // Upload to backend
       const response = await axios.post(`${backendUrl}/api/gallery`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // Refresh the gallery after adding new item
+      console.log('Upload response:', response.data);
+
+      // Add the new item to the local state immediately
+      const newItem = response.data;
+      
+      setGallery(prevItems => [newItem, ...prevItems]);
+
+      // Also refresh the full list to ensure consistency
       await fetchGalleryFromBackend();
+      
       setError(null);
       return response.data;
     } catch (err) {
       console.error('Error adding gallery item:', err);
-      setError('Failed to add gallery item');
-      throw err;
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to add gallery item';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }

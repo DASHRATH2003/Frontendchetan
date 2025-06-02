@@ -66,7 +66,15 @@ const ProjectsAdmin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
 
+    // Validate title
+    if (!title.trim()) {
+      setError('Title is required');
+      return;
+    }
+
+    // Validate file
     if (!file) {
       setError('Please select an image to upload');
       return;
@@ -74,26 +82,36 @@ const ProjectsAdmin = () => {
 
     try {
       setUploading(true);
-      setError(null);
 
       // Create form data for the upload
       const formData = new FormData();
-      formData.append('title', title);
-      formData.append('description', description || `${title} - ${category} project by Chethan Jodidhar`);
-      formData.append('category', category);
+      formData.append('title', title.trim());
+      formData.append('description', description.trim() || `${title.trim()} - ${category.trim()} project by Chethan Jodidhar`);
+      formData.append('category', category.trim());
       formData.append('section', section);
-      formData.append('completed', completed);
+      formData.append('completed', completed.toString());
       formData.append('year', new Date().getFullYear().toString());
-      formData.append('image', file); // Append the actual file
+      formData.append('image', file);
+
+      // Log form data for debugging
+      console.log('Submitting form data:', {
+        title: title.trim(),
+        description: description.trim(),
+        category: category.trim(),
+        section,
+        completed,
+        file: file.name
+      });
 
       // Add the new project using the context function
-      console.log("Adding new project:", { title, category, section });
       await addProject(formData);
 
+      // Reset form on success
       setSuccess('Project added successfully!');
       setTitle('');
       setDescription('');
       setCategory('');
+      setSection('Banner');
       setCompleted(false);
       setFile(null);
       setPreview('');
@@ -104,8 +122,8 @@ const ProjectsAdmin = () => {
       }, 3000);
 
     } catch (err) {
-      setError('Failed to add project');
-      console.error(err);
+      console.error('Error submitting form:', err);
+      setError(err.message || 'Failed to add project');
     } finally {
       setUploading(false);
     }
@@ -230,6 +248,33 @@ const ProjectsAdmin = () => {
     ? projects
     : projects.filter(project => project.section === filter);
 
+  // Helper function to get the full image URL
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return '';
+    
+    // If it's already an absolute URL, return it as is
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
+    }
+
+    // If it's a relative URL starting with /uploads/, prefix with backend URL
+    if (imageUrl.startsWith('/uploads/') || imageUrl.includes('/uploads/')) {
+      const backendUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : 'https://chetanbackend.onrender.com';
+      
+      // Clean up the path to ensure proper format
+      const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+      return `${backendUrl}/uploads/${cleanPath}`;
+    }
+
+    // If it's just a filename, assume it's in uploads directory
+    const backendUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : 'https://chetanbackend.onrender.com';
+    return `${backendUrl}/uploads/${imageUrl}`;
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto px-4">
@@ -248,7 +293,7 @@ const ProjectsAdmin = () => {
         {/* Upload Form */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            Add New Project
+            {editMode ? 'Edit Project' : 'Add New Project'}
           </h2>
 
           {error && (
@@ -263,44 +308,65 @@ const ProjectsAdmin = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Category
-                </label>
-                <input
-                  type="text"
-                  id="category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="e.g., Film, Commercial, etc."
-                />
-              </div>
+          <form onSubmit={editMode ? handleUpdateProject : handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Title *</label>
+              <input
+                type="text"
+                value={editMode ? editTitle : title}
+                onChange={editMode ? (e) => setEditTitle(e.target.value) : (e) => setTitle(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                required
+              />
             </div>
 
-            {/* Hidden fields with default values */}
-            <input type="hidden" id="section" value={section} />
-            <input type="hidden" id="completed" checked={completed} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Description</label>
+              <textarea
+                value={editMode ? editDescription : description}
+                onChange={editMode ? (e) => setEditDescription(e.target.value) : (e) => setDescription(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                rows="3"
+              />
+            </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-gray-700">Category</label>
+              <input
+                type="text"
+                value={editMode ? editCategory : category}
+                onChange={editMode ? (e) => setEditCategory(e.target.value) : (e) => setCategory(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Section</label>
+              <select
+                value={editMode ? editSection : section}
+                onChange={editMode ? (e) => setEditSection(e.target.value) : (e) => setSection(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                <option value="Banner">Banner</option>
+                <option value="Featured">Featured</option>
+                <option value="Regular">Regular</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={editMode ? editCompleted : completed}
+                  onChange={editMode ? (e) => setEditCompleted(e.target.checked) : (e) => setCompleted(e.target.checked)}
+                  className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+                <span className="ml-2 text-sm text-gray-700">Completed</span>
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
                 Project Image
               </label>
               <div className="mt-1 flex items-center">
@@ -396,27 +462,6 @@ const ProjectsAdmin = () => {
           ) : filteredProjects.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredProjects.map((project) => {
-                // Helper function to get the full image URL
-                const getImageUrl = (imageUrl) => {
-                  if (!imageUrl) return '';
-                  
-                  // If it's already an absolute URL, return it as is
-                  if (imageUrl.startsWith('http')) {
-                    return imageUrl;
-                  }
-
-                  // If it's a relative URL starting with /uploads/, prefix with backend URL
-                  if (imageUrl.startsWith('/uploads/')) {
-                    const backendUrl = window.location.hostname === 'localhost' 
-                      ? 'http://localhost:5000' 
-                      : process.env.REACT_APP_BACKEND_URL || 'https://your-backend-url.com';
-                    return `${backendUrl}${imageUrl}`;
-                  }
-
-                  // Return the URL as is for other cases
-                  return imageUrl;
-                };
-
                 return (
                   <div key={project._id} className="relative group">
                     <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">

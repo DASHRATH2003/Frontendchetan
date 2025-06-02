@@ -17,58 +17,78 @@ const GalleryPageSection2 = () => {
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
 
-  // Effect to load gallery data
+  // Helper function to get image URL
+  const getImageUrl = (image) => {
+    if (!image) {
+      console.log('No image provided');
+      return '/placeholder.webp';
+    }
+
+    // If it's already a full URL, return it as is
+    if (image.startsWith('http')) {
+      console.log('Using full URL:', image);
+      return image;
+    }
+
+    // For uploads or relative paths, construct the full URL
+    const backendUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : 'https://chetanbackend.onrender.com';
+
+    // Clean up the path and ensure it starts with /uploads/
+    const cleanPath = image.replace(/^\/+/, '').replace(/^uploads\//, '');
+    const finalPath = `/uploads/${cleanPath}`;
+    const fullUrl = `${backendUrl}${finalPath}`;
+    
+    console.log('Constructed image URL:', fullUrl);
+    return fullUrl;
+  };
+
   useEffect(() => {
-    const loadGallery = async () => {
-      try {
-        setLoading(true);
-        // Clear any old data from localStorage if the function is available
-        if (typeof clearLocalStorage === 'function') {
-          clearLocalStorage();
-        }
-        // Fetch fresh data from backend
-        await refreshGallery();
-      } catch (err) {
-        console.error('Error loading gallery:', err);
-        setError('Failed to load gallery images');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!contextLoading) {
+      setLoading(false);
+    }
+  }, [contextLoading]);
 
-    loadGallery();
-  }, []); // Only run on mount
+  const handleImageClick = (index) => {
+    setCurrentIndex(index);
+  };
 
-  const handleImageClick = (index) => setCurrentIndex(index);
-  const handleCloseModal = () => setCurrentIndex(null);
+  const handleCloseModal = () => {
+    setCurrentIndex(null);
+  };
 
-  const handlePrev = useCallback(() => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : gallery.length - 1));
-  }, [gallery.length]);
+  const handlePrev = () => {
+    setCurrentIndex((prevIndex) => 
+      prevIndex > 0 ? prevIndex - 1 : gallery.length - 1
+    );
+  };
 
-  const handleNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev < gallery.length - 1 ? prev + 1 : 0));
-  }, [gallery.length]);
+  const handleNext = () => {
+    setCurrentIndex((prevIndex) => 
+      prevIndex < gallery.length - 1 ? prevIndex + 1 : 0
+    );
+  };
 
   const handleTouchStart = (e) => {
-    if (e?.targetTouches?.[0]) {
-      setTouchStart(e.targetTouches[0].clientX);
-    }
+    setTouchStart(e.touches[0].clientX);
   };
 
   const handleTouchMove = (e) => {
-    if (e?.targetTouches?.[0]) {
-      setTouchEnd(e.targetTouches[0].clientX);
-    }
+    setTouchEnd(e.touches[0].clientX);
   };
 
-  const handleTouchEnd = (e) => {
-    e?.preventDefault?.();
-    const swipeDistance = touchStart - touchEnd;
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
 
-    if (swipeDistance > 150) {
+    if (isLeftSwipe) {
       handleNext();
-    } else if (swipeDistance < -150) {
+    }
+    if (isRightSwipe) {
       handlePrev();
     }
 
@@ -76,19 +96,7 @@ const GalleryPageSection2 = () => {
     setTouchEnd(0);
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (currentIndex === null) return;
-      if (e.key === "ArrowLeft") handlePrev();
-      if (e.key === "ArrowRight") handleNext();
-      if (e.key === "Escape") handleCloseModal();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIndex, handleNext, handlePrev]);
-
-  if (loading || contextLoading) {
+  if (loading) {
     return (
       <div className="flex justify-center py-10">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
@@ -113,10 +121,16 @@ const GalleryPageSection2 = () => {
             className="relative group overflow-hidden rounded-lg cursor-pointer aspect-square"
           >
             <img
-              src={image.imageUrl}
+              src={getImageUrl(image.image)}
               alt={image.alt || image.title || "Gallery image"}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
               onClick={() => handleImageClick(index)}
+              onError={(e) => {
+                console.error('Error loading image:', image.image);
+                e.target.src = '/placeholder.webp';
+                e.target.classList.add('error-loaded');
+              }}
+              loading="lazy"
             />
             {image.title && (
               <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -138,9 +152,13 @@ const GalleryPageSection2 = () => {
               onTouchEnd={handleTouchEnd}
             >
               <img
-                src={gallery[currentIndex].imageUrl}
+                src={getImageUrl(gallery[currentIndex].image)}
                 alt={gallery[currentIndex].alt || gallery[currentIndex].title || "Gallery image"}
                 className="max-w-full max-h-full object-contain pointer-events-none"
+                onError={(e) => {
+                  console.error('Error loading image:', gallery[currentIndex].image);
+                  e.target.src = '/placeholder.webp';
+                }}
               />
             </div>
             <div className="absolute bottom-4 left-0 right-0 text-center text-white">
