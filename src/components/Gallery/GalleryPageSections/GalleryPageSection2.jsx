@@ -33,7 +33,7 @@ const GalleryPageSection2 = () => {
     // For uploads or relative paths, construct the full URL
     const backendUrl = window.location.hostname === 'localhost' 
       ? 'http://localhost:5000' 
-      : 'https://chetanbackend.onrender.com';
+      : 'https://backendchetan.onrender.com';
 
     // Clean up the path and ensure it starts with /uploads/
     const cleanPath = image.replace(/^\/+/, '').replace(/^uploads\//, '');

@@ -28,7 +28,7 @@ const getImageSource = (imageUrl) => {
   // For uploads or relative paths, construct the full URL
   const backendUrl = window.location.hostname === 'localhost' 
     ? 'http://localhost:5000' 
-    : 'https://chetanbackend.onrender.com';
+    : 'https://backendchetan.onrender.com';
 
   // Clean up the path
   const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');

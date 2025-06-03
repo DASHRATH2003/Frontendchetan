@@ -39,7 +39,7 @@ export const GalleryProvider = ({ children }) => {
   const getBackendUrl = () => {
     return window.location.hostname === 'localhost' 
       ? 'http://localhost:5000' 
-      : 'https://chetanbackend.onrender.com';
+      : 'https://backendchetan.onrender.com';
   };
 
   const processImageUrl = (imageUrl) => {

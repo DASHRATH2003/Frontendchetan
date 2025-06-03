@@ -16,7 +16,7 @@ const Projects_Banner_Section = () => {
     // Always use the production URL for deployed site
     const backendUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:5000'
-      : 'https://chetanbackend.onrender.com';
+      : 'https://backendchetan.onrender.com';
 
     if (imageUrl.startsWith('/uploads/')) {
       return `${backendUrl}${imageUrl}`;

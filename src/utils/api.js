@@ -1,4 +1,4 @@
-const API_URL = 'https://chetanbackend.onrender.com';
+const API_URL = 'https://backendchetan.onrender.com';
 const APP_URL = 'https://silly-zuccutto-6e18a6.netlify.app';
 
 export const api = {

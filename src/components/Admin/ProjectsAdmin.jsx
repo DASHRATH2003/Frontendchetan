@@ -261,7 +261,7 @@ const ProjectsAdmin = () => {
     if (imageUrl.startsWith('/uploads/') || imageUrl.includes('/uploads/')) {
       const backendUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:5000' 
-        : 'https://chetanbackend.onrender.com';
+        : 'https://backendchetan.onrender.com';
       
       // Clean up the path to ensure proper format
       const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
