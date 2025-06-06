@@ -1,40 +1,17 @@
 import React, { createContext, useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import axios from 'axios';
 
 const GalleryContext = createContext();
+
+// Base64 encoded placeholder image
+const PLACEHOLDER_IMAGE = 'data:image/webp;base64,UklGRlIAAABXRUJQVlA4WAoAAAAQAAAAAAAAAAAAQUxQSAIAAAABBxAREYiI/gcAAABWUDggGAAAADABAJ0BKgEAAQABABwlpAADcAD+/gbQAA==';
 
 export const GalleryProvider = ({ children }) => {
   const [gallery, setGallery] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Default gallery data
-  const defaultGallery = [
-    {
-      _id: '1',
-      title: 'Behind the Scenes 1',
-      description: 'Shooting day at location',
-      imageUrl: '/images/gallery/bts1.jpg',
-      alt: 'Behind the scenes photo 1',
-      timestamp: new Date('2024-01-15').getTime()
-    },
-    {
-      _id: '2',
-      title: 'Production Meeting',
-      description: 'Team discussion for upcoming project',
-      imageUrl: '/images/gallery/meeting.jpg',
-      alt: 'Production meeting photo',
-      timestamp: new Date('2024-02-20').getTime()
-    },
-    {
-      _id: '3',
-      title: 'Location Scouting',
-      description: 'Finding perfect locations for the shoot',
-      imageUrl: '/images/gallery/location.jpg',
-      alt: 'Location scouting photo',
-      timestamp: new Date('2024-03-10').getTime()
-    }
-  ];
+  const [processedUrls] = useState(new Map());
 
   const getBackendUrl = () => {
     return window.location.hostname === 'localhost' 
@@ -45,12 +22,17 @@ export const GalleryProvider = ({ children }) => {
   const processImageUrl = (imageUrl) => {
     if (!imageUrl) {
       console.log('No image URL provided');
-      return '/placeholder.webp';
+      return PLACEHOLDER_IMAGE;
     }
 
-    // If it's already a full URL, return it as is
-    if (imageUrl.startsWith('http')) {
-      console.log('Using full URL:', imageUrl);
+    // Check cache first
+    if (processedUrls.has(imageUrl)) {
+      return processedUrls.get(imageUrl);
+    }
+
+    // If it's already a full URL, cache and return it
+    if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) {
+      processedUrls.set(imageUrl, imageUrl);
       return imageUrl;
     }
 
@@ -62,7 +44,18 @@ export const GalleryProvider = ({ children }) => {
     const finalPath = `/uploads/${cleanPath}`;
     const fullUrl = `${backendUrl}${finalPath}`;
     
-    console.log('Constructed image URL:', fullUrl);
+    // Cache the processed URL
+    processedUrls.set(imageUrl, fullUrl);
+    
+    // Log the constructed URL for debugging
+    console.log('Image URL details:', {
+      original: imageUrl,
+      cleaned: cleanPath,
+      final: fullUrl,
+      backendUrl,
+      isLocalhost: window.location.hostname === 'localhost'
+    });
+    
     return fullUrl;
   };
 
@@ -118,13 +111,20 @@ export const GalleryProvider = ({ children }) => {
       const response = await fetchGalleryWithRetry();
       console.log('Raw API response:', response);
 
-      const galleryData = response.data;
-      console.log('Gallery data received:', galleryData);
-
-      if (!Array.isArray(galleryData)) {
-        console.error('Invalid gallery data format:', galleryData);
+      // Handle both the old array format and new object format
+      let galleryData;
+      if (Array.isArray(response.data)) {
+        // Old format - direct array
+        galleryData = response.data;
+      } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        // New format - wrapped in success object
+        galleryData = response.data.data;
+      } else {
+        console.error('Invalid gallery data format:', response.data);
         throw new Error('Invalid gallery data format received');
       }
+      
+      console.log('Gallery data received:', galleryData);
 
       // Process the gallery data
       const processedGallery = galleryData.map(item => {
@@ -132,16 +132,13 @@ export const GalleryProvider = ({ children }) => {
           console.error('Invalid gallery item:', item);
           return null;
         }
-
-        // Use the processImageUrl function for consistent URL handling
-        const imageUrl = processImageUrl(item.image);
         
         return {
           _id: item._id,
           title: item.title || 'Untitled',
           description: item.description || '',
-          image: item.image,
-          imageUrl: imageUrl,
+          image: item.image, // Keep the original image path
+          imageUrl: item.imageUrl || processImageUrl(item.image), // Use server URL or generate one
           alt: item.title || 'Gallery image',
           timestamp: item.createdAt || Date.now()
         };
@@ -189,29 +186,73 @@ export const GalleryProvider = ({ children }) => {
         description: formData.get('description'),
         fileName: image.name,
         fileType: image.type,
-        fileSize: image.size
+        fileSize: image.size,
+        backendUrl
       });
 
       // Upload to backend
+      const token = localStorage.getItem('token');
+      console.log('Using auth token:', token ? 'Present' : 'Not present');
+
       const response = await axios.post(`${backendUrl}/api/gallery`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'x-auth-token': token || '',
+          'Accept': 'application/json',
+          'Origin': window.location.origin
+        },
+        withCredentials: true,
+        timeout: 30000, // 30 second timeout
+        validateStatus: null, // Allow all status codes
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
       });
 
-      console.log('Upload response:', response.data);
+      console.log('Upload response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers
+      });
 
-      // Add the new item to the local state immediately
-      const newItem = response.data;
+      // Check if the response has the expected structure
+      if (!response.data || !response.data.success || !response.data.data) {
+        console.error('Invalid server response:', response.data);
+        throw new Error(response.data?.message || 'Invalid response from server');
+      }
+
+      // The server now provides the complete item with imageUrl
+      const newItem = response.data.data;
       
+      // Add the new item to the local state immediately
       setGallery(prevItems => [newItem, ...prevItems]);
 
-      // Also refresh the full list to ensure consistency
-      await fetchGalleryFromBackend();
-      
       setError(null);
-      return response.data;
+      return {
+        success: true,
+        message: response.data.message || 'Image uploaded successfully',
+        data: newItem
+      };
     } catch (err) {
-      console.error('Error adding gallery item:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to add gallery item';
+      console.error('Error adding gallery item:', {
+        message: err.message,
+        code: err.code,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
+
+      let errorMessage;
+      if (err.code === 'ECONNABORTED') {
+        errorMessage = 'Upload timed out. Please try again.';
+      } else if (err.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (err.response?.status === 413) {
+        errorMessage = 'Image file is too large. Maximum size is 5MB.';
+      } else {
+        errorMessage = err.response?.data?.message || err.message || 'Failed to add gallery item';
+      }
+
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -267,11 +308,16 @@ export const GalleryProvider = ({ children }) => {
       addGalleryItem,
       deleteGalleryItem,
       deleteAllGalleryItems,
+      processImageUrl,
       refreshGallery: fetchGalleryFromBackend
     }}>
       {children}
     </GalleryContext.Provider>
   );
+};
+
+GalleryProvider.propTypes = {
+  children: PropTypes.node.isRequired
 };
 
 export default GalleryContext;

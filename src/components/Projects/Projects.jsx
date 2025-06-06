@@ -4,31 +4,30 @@ import ProjectContext from '../../context/ProjectContext';
 const Projects = () => {
   const { projects, loading, error } = useContext(ProjectContext);
 
-  // Helper function to get image URL
-  const getImageUrl = (image) => {
-    if (!image) {
-      console.log('No image provided');
-      return '/placeholder.webp';
+  const handleImageError = (e) => {
+    console.error('Image failed to load:', e.target.src);
+    // Only set placeholder if the current src is not already the placeholder
+    if (!e.target.src.includes('placeholder.webp')) {
+      e.target.src = '/placeholder.webp';
     }
+  };
 
-    // If it's already a full URL, return it as is
-    if (image.startsWith('http')) {
-      console.log('Using full URL:', image);
-      return image;
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return '/placeholder.webp';
+    
+    // If it's already a full URL, return it
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
     }
 
     // For uploads or relative paths, construct the full URL
     const backendUrl = window.location.hostname === 'localhost' 
       ? 'http://localhost:5000' 
-      : 'https://chetanbackend.onrender.com';
+      : 'https://backendchetan.onrender.com';
 
-    // Clean up the path and ensure it starts with /uploads/
-    const cleanPath = image.replace(/^\/+/, '').replace(/^uploads\//, '');
-    const finalPath = `/uploads/${cleanPath}`;
-    const fullUrl = `${backendUrl}${finalPath}`;
-    
-    console.log('Constructed image URL:', fullUrl);
-    return fullUrl;
+    // Clean up the path to ensure proper format
+    const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+    return `${backendUrl}/uploads/${cleanPath}`;
   };
 
   if (loading) {
@@ -56,11 +55,7 @@ const Projects = () => {
               src={getImageUrl(project.image)}
               alt={project.title}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-              onError={(e) => {
-                console.error('Error loading project image:', project.image);
-                e.target.src = '/placeholder.webp';
-                e.target.classList.add('error-loaded');
-              }}
+              onError={handleImageError}
               loading="lazy"
             />
           </div>

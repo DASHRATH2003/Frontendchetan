@@ -4,7 +4,7 @@ import ProjectContext from '../../context/ProjectContext';
 import AdminLayout from './AdminLayout';
 
 const ProjectsAdmin = () => {
-  const { projects, setProjects, addProject, updateProject, deleteProject, deleteAllProjects } = useContext(ProjectContext);
+  const { projects, setProjects, addProject, updateProject, deleteProject, deleteAllProjects, fetchProjects } = useContext(ProjectContext);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -12,6 +12,7 @@ const ProjectsAdmin = () => {
   const [completed, setCompleted] = useState(false);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
+  const [link, setLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -28,6 +29,7 @@ const ProjectsAdmin = () => {
   const [editCompleted, setEditCompleted] = useState(false);
   const [editFile, setEditFile] = useState(null);
   const [editPreview, setEditPreview] = useState('');
+  const [editLink, setEditLink] = useState('');
 
   useEffect(() => {
     // Projects are already loaded from the ProjectContext
@@ -92,6 +94,7 @@ const ProjectsAdmin = () => {
       formData.append('completed', completed.toString());
       formData.append('year', new Date().getFullYear().toString());
       formData.append('image', file);
+      formData.append('link', link.trim());
 
       // Log form data for debugging
       console.log('Submitting form data:', {
@@ -100,11 +103,19 @@ const ProjectsAdmin = () => {
         category: category.trim(),
         section,
         completed,
-        file: file.name
+        file: file.name,
+        link: link.trim()
       });
 
       // Add the new project using the context function
-      await addProject(formData);
+      const response = await addProject(formData);
+
+      if (!response || !response._id) {
+        throw new Error('Failed to add project - invalid response from server');
+      }
+
+      // Refresh the projects list
+      await fetchProjects();
 
       // Reset form on success
       setSuccess('Project added successfully!');
@@ -115,6 +126,7 @@ const ProjectsAdmin = () => {
       setCompleted(false);
       setFile(null);
       setPreview('');
+      setLink('');
 
       // Clear success message after 3 seconds
       setTimeout(() => {
@@ -161,6 +173,7 @@ const ProjectsAdmin = () => {
     setEditSection(project.section || 'Banner');
     setEditCompleted(project.completed || false);
     setEditPreview(project.imageUrl);
+    setEditLink(project.link || '');
     setEditFile(null);
     setEditMode(true);
   };
@@ -175,6 +188,7 @@ const ProjectsAdmin = () => {
     setEditCompleted(false);
     setEditFile(null);
     setEditPreview('');
+    setEditLink('');
   };
 
   const handleUpdateProject = async (e) => {
@@ -194,6 +208,7 @@ const ProjectsAdmin = () => {
       formData.append('section', editSection);
       formData.append('completed', editCompleted);
       formData.append('year', editingProject.year || new Date().getFullYear().toString());
+      formData.append('link', editLink.trim());
 
       // If there's a new file, append it
       if (editFile) {
@@ -271,7 +286,7 @@ const ProjectsAdmin = () => {
     // If it's just a filename, assume it's in uploads directory
     const backendUrl = window.location.hostname === 'localhost' 
       ? 'http://localhost:5000' 
-      : 'https://chetanbackend.onrender.com';
+      : 'https://backendchetan.onrender.com';
     return `${backendUrl}/uploads/${imageUrl}`;
   };
 
@@ -388,6 +403,19 @@ const ProjectsAdmin = () => {
                   {file ? file.name : 'No file selected'}
                 </p>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Project Link (Optional)
+              </label>
+              <input
+                type="url"
+                value={editMode ? editLink : link}
+                onChange={editMode ? (e) => setEditLink(e.target.value) : (e) => setLink(e.target.value)}
+                placeholder="https://example.com"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
             </div>
 
             {preview && (

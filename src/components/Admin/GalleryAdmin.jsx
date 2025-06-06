@@ -3,6 +3,7 @@ import axios from 'axios';
 import { FaUpload, FaTrash, FaImage, FaEdit, FaTimes, FaSync } from 'react-icons/fa';
 import AdminLayout from './AdminLayout';
 import GalleryContext from '../../context/GalleryContext';
+import placeholderImage from '../../assets/placeholder.webp'; // Import placeholder image
 
 // Helper function to get image source from storage or use fallback
 const getImageSource = (imageUrl) => {
@@ -46,7 +47,8 @@ const GalleryAdmin = () => {
     addGalleryItem,
     deleteGalleryItem,
     deleteAllGalleryItems,
-    refreshGallery
+    refreshGallery,
+    processImageUrl
   } = useContext(GalleryContext);
 
   const [images, setImages] = useState([]);
@@ -124,9 +126,15 @@ const GalleryAdmin = () => {
       });
 
       // Upload using context function
-      await addGalleryItem(formData);
+      const response = await addGalleryItem(formData);
 
-      setSuccess('Image uploaded successfully!');
+      // The response should have success, message, and data fields
+      if (!response || !response.success || !response.data) {
+        throw new Error(response?.message || 'Failed to upload image');
+      }
+
+      // Use the success message from the response
+      setSuccess(response.message);
       setTitle('');
       setDescription('');
       setFile(null);
@@ -139,7 +147,7 @@ const GalleryAdmin = () => {
 
     } catch (err) {
       console.error('Upload error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to upload image');
+      setError(err.message || 'Failed to upload image');
     } finally {
       setUploading(false);
     }
@@ -334,6 +342,26 @@ const GalleryAdmin = () => {
     }
   };
 
+  // Function to handle image load errors
+  const handleImageError = (e) => {
+    const imgElement = e.target;
+    const originalSrc = imgElement.src;
+    
+    // Only try to reload once
+    if (!imgElement.dataset.retried) {
+      console.log('Retrying image load:', originalSrc);
+      imgElement.dataset.retried = 'true';
+      // Try reloading the image
+      imgElement.src = originalSrc;
+    } else {
+      console.error('Image failed to load after retry:', originalSrc);
+      // Use data URL for placeholder
+      imgElement.src = 'data:image/webp;base64,UklGRlIAAABXRUJQVlA4WAoAAAAQAAAAAAAAAAAAQUxQSAIAAAABBxAREYiI/gcAAABWUDggGAAAADABAJ0BKgEAAQABABwlpAADcAD+/gbQAA==';
+      // Add error class for styling
+      imgElement.classList.add('image-load-error');
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto px-4">
@@ -419,7 +447,7 @@ const GalleryAdmin = () => {
                 </p>
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                Supported formats: JPG, PNG, WebP. Max size: 5MB
+                Supported formats: JPG, PNG, WebP, AVIF. Max size: 5MB
               </p>
             </div>
 
@@ -482,13 +510,10 @@ const GalleryAdmin = () => {
                 <div key={image._id} className="relative group">
                   <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
                     <img
-                      src={image.imageUrl}
+                      src={image.imageUrl || processImageUrl(image.image)}
                       alt={image.title}
                       className="h-72 w-full object-cover object-center"
-                      onError={(e) => {
-                        console.error('Error loading image:', image.imageUrl);
-                        e.target.src = '/placeholder.webp';
-                      }}
+                      onError={handleImageError}
                     />
                   </div>
                   <div className="mt-2">
