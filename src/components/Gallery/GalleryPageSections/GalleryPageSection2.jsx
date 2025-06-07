@@ -119,14 +119,14 @@ const GalleryPageSection2 = () => {
             className="relative group overflow-hidden rounded-lg cursor-pointer aspect-square"
           >
             <img
-              src={image.imageUrl}
+              src={getImageUrl(image.image)}
               alt={image.alt || image.title || "Gallery image"}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
               onClick={() => handleImageClick(index)}
               onError={(e) => {
-                console.error('Error loading image:', image.imageUrl);
-                e.target.src = '/placeholder.webp';
-                e.target.onerror = null; // Prevent infinite loop if placeholder also fails
+                console.error('Error loading image:', image.image);
+                e.target.src = 'https://www.chethancinemas.com/placeholder.webp';
+                e.target.onerror = null;
                 e.target.classList.add('error-loaded');
               }}
               loading="lazy"
@@ -156,7 +156,8 @@ const GalleryPageSection2 = () => {
                 className="max-w-full max-h-full object-contain pointer-events-none"
                 onError={(e) => {
                   console.error('Error loading image:', gallery[currentIndex].image);
-                  e.target.src = '/placeholder.webp';
+                  e.target.src = 'https://www.chethancinemas.com/placeholder.webp';
+                  e.target.onerror = null;
                 }}
               />
             </div>
