@@ -15,33 +15,6 @@ const GalleryPageSection2 = () => {
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
 
-  // Helper function to get image URL
-  const getImageUrl = (image) => {
-    if (!image) {
-      console.log('No image provided');
-      return '/placeholder.webp';
-    }
-
-    // If it's already a full URL, return it as is
-    if (image.startsWith('http')) {
-      console.log('Using full URL:', image);
-      return image;
-    }
-
-    // For uploads or relative paths, construct the full URL
-    const backendUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : 'https://backendchetan.onrender.com';
-
-    // Clean up the path and ensure it starts with /uploads/
-    const cleanPath = image.replace(/^\/+/, '').replace(/^uploads\//, '');
-    const finalPath = `/uploads/${cleanPath}`;
-    const fullUrl = `${backendUrl}${finalPath}`;
-    
-    console.log('Constructed image URL:', fullUrl);
-    return fullUrl;
-  };
-
   useEffect(() => {
     if (!contextLoading) {
       setLoading(false);
@@ -113,28 +86,28 @@ const GalleryPageSection2 = () => {
   return (
     <section className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {gallery.map((image, index) => (
+        {gallery.map((item, index) => (
           <div
-            key={image._id || index}
+            key={item._id || index}
             className="relative group overflow-hidden rounded-lg cursor-pointer aspect-square"
           >
             <img
-              src={getImageUrl(image.image)}
-              alt={image.alt || image.title || "Gallery image"}
+              src={item.imageUrl}
+              alt={item.alt || item.title || "Gallery image"}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
               onClick={() => handleImageClick(index)}
               onError={(e) => {
-                console.error('Error loading image:', image.image);
-                e.target.src = 'https://www.chethancinemas.com/placeholder.webp';
+                console.error('Error loading image:', item.imageUrl);
+                e.target.src = '/placeholder.webp';
                 e.target.onerror = null;
                 e.target.classList.add('error-loaded');
               }}
               loading="lazy"
             />
-            {image.title && (
+            {item.title && (
               <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <h3 className="text-sm font-medium">{image.title}</h3>
-                {image.description && <p className="text-xs mt-1">{image.description}</p>}
+                <h3 className="text-sm font-medium">{item.title}</h3>
+                {item.description && <p className="text-xs mt-1">{item.description}</p>}
               </div>
             )}
           </div>
@@ -151,13 +124,12 @@ const GalleryPageSection2 = () => {
               onTouchEnd={handleTouchEnd}
             >
               <img
-                src={getImageUrl(gallery[currentIndex].image)}
+                src={gallery[currentIndex].imageUrl}
                 alt={gallery[currentIndex].alt || gallery[currentIndex].title || "Gallery image"}
                 className="max-w-full max-h-full object-contain pointer-events-none"
                 onError={(e) => {
-                  console.error('Error loading image:', gallery[currentIndex].image);
-                  e.target.src = 'https://www.chethancinemas.com/placeholder.webp';
-                  e.target.onerror = null;
+                  console.error('Error loading image:', gallery[currentIndex].imageUrl);
+                  e.target.src = '/placeholder.webp';
                 }}
               />
             </div>
