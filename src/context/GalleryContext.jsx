@@ -40,7 +40,10 @@ export const GalleryProvider = ({ children }) => {
     const backendUrl = getBackendUrl();
     
     // Clean up the path and ensure it starts with /uploads/
-    const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
+    const cleanPath = imageUrl.startsWith('/uploads/') 
+      ? imageUrl.substring(8) // Remove /uploads/ prefix
+      : imageUrl.replace(/^\/+/, ''); // Remove leading slashes
+    
     const finalPath = `/uploads/${cleanPath}`;
     const fullUrl = `${backendUrl}${finalPath}`;
     
