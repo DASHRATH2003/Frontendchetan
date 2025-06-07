@@ -121,13 +121,14 @@ const GalleryPageSection2 = () => {
             className="relative group overflow-hidden rounded-lg cursor-pointer aspect-square"
           >
             <img
-              src={getImageUrl(image.image)}
+              src={image.imageUrl}
               alt={image.alt || image.title || "Gallery image"}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
               onClick={() => handleImageClick(index)}
               onError={(e) => {
-                console.error('Error loading image:', image.image);
+                console.error('Error loading image:', image.imageUrl);
                 e.target.src = '/placeholder.webp';
+                e.target.onerror = null; // Prevent infinite loop if placeholder also fails
                 e.target.classList.add('error-loaded');
               }}
               loading="lazy"

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
 import { FaUpload, FaTrash, FaImage, FaEdit, FaTimes, FaSync } from 'react-icons/fa';
 import AdminLayout from './AdminLayout';
 import GalleryContext from '../../context/GalleryContext';
@@ -47,8 +46,7 @@ const GalleryAdmin = () => {
     addGalleryItem,
     deleteGalleryItem,
     deleteAllGalleryItems,
-    refreshGallery,
-    processImageUrl
+    refreshGallery
   } = useContext(GalleryContext);
 
   const [images, setImages] = useState([]);
@@ -56,7 +54,6 @@ const GalleryAdmin = () => {
   const [description, setDescription] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState('');
@@ -113,38 +110,28 @@ const GalleryAdmin = () => {
         return;
       }
 
-      // Create form data
+      // Create FormData
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('image', file);
 
-      console.log('Uploading file:', {
-        name: file.name,
-        type: file.type,
-        size: file.size
-      });
-
-      // Upload using context function
-      const response = await addGalleryItem(formData);
-
-      // The response should have success, message, and data fields
-      if (!response || !response.success || !response.data) {
-        throw new Error(response?.message || 'Failed to upload image');
+      // Upload image
+      const result = await addGalleryItem(formData);
+      
+      if (result.success) {
+        // Clear form
+        setTitle('');
+        setDescription('');
+        setFile(null);
+        setPreview('');
+        setSuccess('Image uploaded successfully!');
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccess('');
+        }, 3000);
       }
-
-      // Use the success message from the response
-      setSuccess(response.message);
-      setTitle('');
-      setDescription('');
-      setFile(null);
-      setPreview('');
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.message || 'Failed to upload image');
@@ -155,35 +142,28 @@ const GalleryAdmin = () => {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    
     if (!selectedFile) {
-      setError('No file selected');
       setFile(null);
       setPreview('');
       return;
     }
-    
+
     // Validate file type
-    if (!selectedFile.type.startsWith('image/')) {
-      setError('Please select a valid image file');
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(selectedFile.type)) {
+      setError('Please select a valid image file (JPEG, JPG, PNG, GIF, or WebP)');
       setFile(null);
       setPreview('');
       return;
     }
 
-    // Validate file size (max 5MB)
+    // Validate file size (5MB)
     if (selectedFile.size > 5 * 1024 * 1024) {
-      setError('Image size should be less than 5MB');
+      setError('Image file is too large. Maximum size is 5MB.');
       setFile(null);
       setPreview('');
       return;
     }
-
-    console.log('Selected file:', {
-      name: selectedFile.name,
-      type: selectedFile.type,
-      size: selectedFile.size
-    });
 
     setFile(selectedFile);
     setError(null);
@@ -207,7 +187,7 @@ const GalleryAdmin = () => {
     }
 
     try {
-      setLoading(true);
+      setUploading(true);
       await deleteGalleryItem(id);
       setSuccess('Image deleted successfully!');
 
@@ -218,7 +198,7 @@ const GalleryAdmin = () => {
       setError('Failed to delete image');
       console.error(err);
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -237,7 +217,7 @@ const GalleryAdmin = () => {
   };
 
   const handleResetGallery = async () => {
-    if (!window.confirm('Are you sure you want to reset the gallery? This will clear all gallery data and fix any duplicate key issues.')) {
+    if (!window.confirm('Are you sure you want to reset the gallery? This will clear all gallery data.')) {
       return;
     }
 
@@ -245,46 +225,14 @@ const GalleryAdmin = () => {
       setResetting(true);
       setError(null);
 
-      console.log("Resetting gallery data...");
+      await deleteAllGalleryItems();
+      await refreshGallery();
 
-      // Clear localStorage gallery data
-      localStorage.removeItem('gallery');
-      localStorage.removeItem('gallery-last-updated');
-
-      // Clear any image storage keys
-      const imageKeys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith('gallery-img-') || key.startsWith('gallery-meta-'))) {
-          imageKeys.push(key);
-        }
-      }
-
-      // Remove all gallery-related items
-      imageKeys.forEach(key => {
-        localStorage.removeItem(key);
-      });
-
-      console.log(`Cleared ${imageKeys.length} gallery-related items from localStorage`);
-
-      // Reset the gallery context
-      refreshGallery([]);
-
-      // Reset the local state
-      setImages([]);
-
-      // Refresh gallery data from storage
-      fetchGalleryImages();
-
-      setSuccess('Gallery data has been reset successfully. The page will reload in 2 seconds.');
-
-      // Reload the page after a short delay
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-    } catch (error) {
-      console.error("Error resetting gallery:", error);
-      setError('Failed to reset gallery data');
+      setSuccess('Gallery has been reset successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Reset error:', err);
+      setError('Failed to reset gallery');
     } finally {
       setResetting(false);
     }
@@ -296,7 +244,7 @@ const GalleryAdmin = () => {
     if (!editingImage) return;
 
     try {
-      setLoading(true);
+      setUploading(true);
       setError(null);
 
       // Update using context function
@@ -317,7 +265,7 @@ const GalleryAdmin = () => {
       setError('Failed to update image');
       console.error(err);
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -327,7 +275,7 @@ const GalleryAdmin = () => {
     }
 
     try {
-      setLoading(true);
+      setUploading(true);
       await deleteAllGalleryItems();
       setSuccess('All gallery items deleted successfully!');
 
@@ -338,7 +286,7 @@ const GalleryAdmin = () => {
       setError('Failed to delete all gallery items');
       console.error(err);
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -500,7 +448,7 @@ const GalleryAdmin = () => {
             </button>
           </div>
 
-          {loading ? (
+          {contextLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
             </div>
@@ -618,10 +566,10 @@ const GalleryAdmin = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={uploading}
                     className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                   >
-                    {loading ? (
+                    {uploading ? (
                       <>
                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
