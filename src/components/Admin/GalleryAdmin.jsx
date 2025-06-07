@@ -2,88 +2,35 @@ import React, { useState, useEffect, useContext } from 'react';
 import { FaUpload, FaTrash, FaImage, FaEdit, FaTimes, FaSync } from 'react-icons/fa';
 import AdminLayout from './AdminLayout';
 import GalleryContext from '../../context/GalleryContext';
-import placeholderImage from '../../assets/placeholder.webp'; // Import placeholder image
-
-// Helper function to get image source from storage or use fallback
-const getImageSource = (imageUrl) => {
-  console.log("Admin - Getting image source for:", imageUrl);
-
-  if (!imageUrl) {
-    console.log("Admin - No image URL provided, returning fallback");
-    return '/src/assets/GalleryImages/1.webp';
-  }
-
-  // If it's a data URL, return it directly
-  if (imageUrl.startsWith('data:')) {
-    console.log("Admin - Image URL is a data URL");
-    return imageUrl;
-  }
-
-  // If it's an absolute URL, return it as is
-  if (imageUrl.startsWith('http')) {
-    console.log("Admin - Image URL is an absolute URL");
-    return imageUrl;
-  }
-
-  // For uploads or relative paths, construct the full URL
-  const backendUrl = window.location.hostname === 'localhost' 
-    ? 'http://localhost:5000' 
-    : 'https://backendchetan.onrender.com';
-
-  // Clean up the path
-  const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
-  const finalPath = `/uploads/${cleanPath}`;
-  
-  console.log("Admin - Constructed image URL:", `${backendUrl}${finalPath}`);
-  return `${backendUrl}${finalPath}`;
-};
 
 const GalleryAdmin = () => {
   const {
     gallery,
     loading: contextLoading,
-    error: contextError,
     addGalleryItem,
     deleteGalleryItem,
     deleteAllGalleryItems,
-    refreshGallery
+    refreshGallery,
+    processImageUrl
   } = useContext(GalleryContext);
 
   const [images, setImages] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [year, setYear] = useState(new Date().getFullYear().toString());
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState('');
   const [resetting, setResetting] = useState(false);
-  const [apiAvailable, setApiAvailable] = useState(true);
 
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
   const [editingImage, setEditingImage] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
-
-  // Check if API is available when component mounts
-  useEffect(() => {
-    const checkApiAvailability = async () => {
-      if (window.location.hostname === 'localhost') {
-        try {
-          await axios.get('http://localhost:5000/api/health', {
-            timeout: 1000
-          });
-          setApiAvailable(true);
-        } catch (error) {
-          console.log("API is not available:", error.message);
-          setApiAvailable(false);
-        }
-      }
-    };
-
-    checkApiAvailability();
-  }, []);
 
   // Update local images when gallery changes
   useEffect(() => {
@@ -114,6 +61,8 @@ const GalleryAdmin = () => {
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('description', description.trim());
+      formData.append('category', category.trim());
+      formData.append('year', year);
       formData.append('image', file);
 
       // Upload image
@@ -123,6 +72,8 @@ const GalleryAdmin = () => {
         // Clear form
         setTitle('');
         setDescription('');
+        setCategory('');
+        setYear(new Date().getFullYear().toString());
         setFile(null);
         setPreview('');
         setSuccess('Image uploaded successfully!');
@@ -369,6 +320,32 @@ const GalleryAdmin = () => {
                 rows="3"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               ></textarea>
+            </div>
+
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Category
+              </label>
+              <input
+                type="text"
+                id="category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="year" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Year
+              </label>
+              <input
+                type="text"
+                id="year"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
             </div>
 
             <div>
