@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import GalleryContext from "../../../context/GalleryContext";
 
@@ -7,12 +7,10 @@ const GalleryPageSection2 = () => {
     gallery,
     loading: contextLoading,
     error: contextError,
-    refreshGallery,
-    clearLocalStorage
   } = useContext(GalleryContext);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(null);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
