@@ -14,8 +14,8 @@ export const GalleryProvider = ({ children }) => {
   const [processedUrls] = useState(new Map());
 
   const getBackendUrl = () => {
-    return process.env.NODE_ENV === 'production'
-      ? 'https://www.chetansinemas.com'
+    return import.meta.env.PROD
+      ? 'https://www.chethancinemas.com'
       : 'http://localhost:5000';
   };
 
@@ -53,7 +53,7 @@ export const GalleryProvider = ({ children }) => {
       cleaned: cleanPath,
       final: fullUrl,
       backendUrl,
-      isProduction: process.env.NODE_ENV === 'production'
+      isProduction: import.meta.env.PROD
     });
     
     return fullUrl;
