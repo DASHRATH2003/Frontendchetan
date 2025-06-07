@@ -14,9 +14,9 @@ export const GalleryProvider = ({ children }) => {
   const [processedUrls] = useState(new Map());
 
   const getBackendUrl = () => {
-    return window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : 'https://backendchetan.onrender.com';
+    return process.env.NODE_ENV === 'production'
+      ? 'https://www.chetansinemas.com'
+      : 'http://localhost:5000';
   };
 
   const processImageUrl = (imageUrl) => {
@@ -53,7 +53,7 @@ export const GalleryProvider = ({ children }) => {
       cleaned: cleanPath,
       final: fullUrl,
       backendUrl,
-      isLocalhost: window.location.hostname === 'localhost'
+      isProduction: process.env.NODE_ENV === 'production'
     });
     
     return fullUrl;
