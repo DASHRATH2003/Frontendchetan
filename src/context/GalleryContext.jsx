@@ -15,7 +15,7 @@ export const GalleryProvider = ({ children }) => {
 
   const getBackendUrl = () => {
     return import.meta.env.PROD
-      ? 'https://www.chethancinemas.com'
+      ? 'https://backendchetan.onrender.com'
       : 'http://localhost:5000';
   };
 
@@ -119,6 +119,9 @@ export const GalleryProvider = ({ children }) => {
       } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
         // New format - wrapped in success object
         galleryData = response.data.data;
+      } else if (response.data && Array.isArray(response.data.gallery)) {
+        // Alternative format
+        galleryData = response.data.gallery;
       } else {
         console.error('Invalid gallery data format:', response.data);
         throw new Error('Invalid gallery data format received');
@@ -133,16 +136,23 @@ export const GalleryProvider = ({ children }) => {
           return null;
         }
         
+        // Ensure we have a valid image path
+        const imagePath = item.image || item.imageUrl || '';
+        if (!imagePath) {
+          console.error('Gallery item has no image path:', item);
+          return null;
+        }
+
         return {
-          _id: item._id,
+          _id: item._id || item.id,
           title: item.title || 'Untitled',
           description: item.description || '',
-          image: item.image, // Keep the original image path
-          imageUrl: item.imageUrl || processImageUrl(item.image), // Use server URL or generate one
+          image: imagePath,
+          imageUrl: processImageUrl(imagePath),
           alt: item.title || 'Gallery image',
-          timestamp: item.createdAt || Date.now()
+          timestamp: item.createdAt || item.timestamp || Date.now()
         };
-      }).filter(Boolean);
+      }).filter(Boolean); // Remove any null items
 
       console.log('Final processed gallery items:', processedGallery);
       setGallery(processedGallery);
@@ -198,14 +208,11 @@ export const GalleryProvider = ({ children }) => {
         headers: { 
           'Content-Type': 'multipart/form-data',
           'x-auth-token': token || '',
-          'Accept': 'application/json',
-          'Origin': window.location.origin
+          'Accept': 'application/json'
         },
         withCredentials: true,
         timeout: 30000, // 30 second timeout
-        validateStatus: null, // Allow all status codes
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity
+        validateStatus: null // Allow all status codes
       });
 
       console.log('Upload response:', {
