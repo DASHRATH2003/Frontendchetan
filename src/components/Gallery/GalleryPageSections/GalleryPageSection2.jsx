@@ -30,12 +30,14 @@ const GalleryPageSection2 = () => {
   };
 
   const handlePrev = () => {
+    if (!Array.isArray(gallery) || gallery.length === 0) return;
     setCurrentIndex((prevIndex) => 
       prevIndex > 0 ? prevIndex - 1 : gallery.length - 1
     );
   };
 
   const handleNext = () => {
+    if (!Array.isArray(gallery) || gallery.length === 0) return;
     setCurrentIndex((prevIndex) => 
       prevIndex < gallery.length - 1 ? prevIndex + 1 : 0
     );
@@ -83,6 +85,14 @@ const GalleryPageSection2 = () => {
     );
   }
 
+  if (!Array.isArray(gallery) || gallery.length === 0) {
+    return (
+      <div className="text-center py-10 text-gray-500">
+        No gallery items found.
+      </div>
+    );
+  }
+
   return (
     <section className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -92,12 +102,12 @@ const GalleryPageSection2 = () => {
             className="relative group overflow-hidden rounded-lg cursor-pointer aspect-square"
           >
             <img
-              src={item.imageUrl}
-              alt={item.alt || item.title || "Gallery image"}
+              src={item.image}
+              alt={item.title || "Gallery image"}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
               onClick={() => handleImageClick(index)}
               onError={(e) => {
-                console.error('Error loading image:', item.imageUrl);
+                console.error('Error loading image:', item.image);
                 e.target.src = '/placeholder.webp';
                 e.target.onerror = null;
                 e.target.classList.add('error-loaded');
@@ -123,11 +133,11 @@ const GalleryPageSection2 = () => {
               onTouchEnd={handleTouchEnd}
             >
               <img
-                src={gallery[currentIndex].imageUrl}
-                alt={gallery[currentIndex].alt || gallery[currentIndex].title || "Gallery image"}
+                src={gallery[currentIndex].image}
+                alt={gallery[currentIndex].title || "Gallery image"}
                 className="max-w-full max-h-full object-contain pointer-events-none"
                 onError={(e) => {
-                  console.error('Error loading image:', gallery[currentIndex].imageUrl);
+                  console.error('Error loading image:', gallery[currentIndex].image);
                   e.target.src = '/placeholder.webp';
                 }}
               />

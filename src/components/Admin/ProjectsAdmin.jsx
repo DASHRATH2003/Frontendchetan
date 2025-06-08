@@ -246,26 +246,7 @@ const ProjectsAdmin = () => {
     if (!imageUrl) {
       return '/placeholder.webp';
     }
-
-    // If it's a Cloudinary URL, return it as is
-    if (imageUrl.includes('cloudinary.com')) {
-      return imageUrl;
-    }
-
-    // If it's already an absolute URL, return it as is
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-
-    // For local development with /uploads/ paths
-    if (imageUrl.startsWith('/uploads/')) {
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : 'https://backendchetan.onrender.com';
-      return `${backendUrl}${imageUrl}`;
-    }
-
-    return '/placeholder.webp';
+    return imageUrl; // Return the Cloudinary URL directly
   };
 
   return (

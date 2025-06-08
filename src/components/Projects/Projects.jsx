@@ -14,20 +14,7 @@ const Projects = () => {
 
   const getImageUrl = (imageUrl) => {
     if (!imageUrl) return '/placeholder.webp';
-    
-    // If it's already a full URL, return it
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-
-    // For uploads or relative paths, construct the full URL
-    const backendUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : 'https://backendchetan.onrender.com';
-
-    // Clean up the path to ensure proper format
-    const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
-    return `${backendUrl}/uploads/${cleanPath}`;
+    return imageUrl; // Return the Cloudinary URL directly
   };
 
   if (loading) {

@@ -27,26 +27,7 @@ export const ProjectProvider = ({ children }) => {
     if (!imageUrl) {
       return '/placeholder.webp';
     }
-
-    // If it's a Cloudinary URL, return it as is
-    if (imageUrl.includes('cloudinary.com')) {
-      return imageUrl;
-    }
-
-    // If it's already an absolute URL, return it as is
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-
-    // For local development with /uploads/ paths
-    if (imageUrl.startsWith('/uploads/')) {
-      const backendUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : 'https://backendchetan.onrender.com';
-      return `${backendUrl}${imageUrl}`;
-    }
-
-    return '/placeholder.webp';
+    return imageUrl; // Return the Cloudinary URL directly
   };
 
   // Fetch projects
@@ -70,7 +51,7 @@ export const ProjectProvider = ({ children }) => {
 
         return {
           ...project,
-          imageUrl: getImageUrl(project.image)
+          imageUrl: project.image // Use the Cloudinary URL directly
         };
       }).filter(Boolean);
 
@@ -122,7 +103,7 @@ export const ProjectProvider = ({ children }) => {
       // Use the new project data from the nested response
       const newProject = {
         ...response.data.data,
-        imageUrl: getImageUrl(response.data.data.image)
+        imageUrl: response.data.data.image // Use the Cloudinary URL directly
       };
       
       // Update state with the new project
@@ -158,10 +139,10 @@ export const ProjectProvider = ({ children }) => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // Process the updated project with stable URL
+      // Process the updated project with Cloudinary URL
       const updatedProject = {
         ...response.data,
-        imageUrl: getImageUrl(response.data.image)
+        imageUrl: response.data.image // Use the Cloudinary URL directly
       };
 
       // Update the projects list with the new data
@@ -208,12 +189,7 @@ export const ProjectProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Get the image from the gallery
-      const imageResponse = await fetch(`${backendUrl}/uploads/gallery/1749376234661-620282039.jpeg`);
-      const imageBlob = await imageResponse.blob();
-      const imageFile = new File([imageBlob], 'project-clothnearya.jpeg', { type: 'image/jpeg' });
-
-      // Create form data
+      // Create form data with direct image URL
       const formData = new FormData();
       formData.append('title', 'Same To Same');
       formData.append('description', 'Same To Same - A captivating advertisement for Clothnearya');
@@ -221,17 +197,16 @@ export const ProjectProvider = ({ children }) => {
       formData.append('section', 'Featured');
       formData.append('completed', 'true');
       formData.append('year', new Date().getFullYear().toString());
-      formData.append('image', imageFile);
 
       // Upload to backend
       const response = await axios.post(`${backendUrl}/api/projects`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // Process the new project with stable URL
+      // Process the new project with Cloudinary URL
       const newProject = {
         ...response.data.data,
-        imageUrl: getImageUrl(response.data.data.image)
+        imageUrl: response.data.data.image // Use the Cloudinary URL directly
       };
       
       // Update state with the new project
@@ -249,11 +224,12 @@ export const ProjectProvider = ({ children }) => {
     }
   };
 
-  // Fetch projects on mount
+  // Initial fetch
   useEffect(() => {
     fetchProjects();
   }, []);
 
+  // Context value
   const value = {
     projects,
     loading,
@@ -262,9 +238,8 @@ export const ProjectProvider = ({ children }) => {
     updateProject,
     deleteProject,
     deleteAllProjects,
-    fetchProjects,
-    getImageUrl,
-    addSameToSameProject
+    addSameToSameProject,
+    fetchProjects
   };
 
   return (
