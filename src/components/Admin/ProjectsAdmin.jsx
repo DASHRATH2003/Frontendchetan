@@ -4,7 +4,7 @@ import ProjectContext from '../../context/ProjectContext';
 import AdminLayout from './AdminLayout';
 
 const ProjectsAdmin = () => {
-  const { projects, setProjects, addProject, updateProject, deleteProject, deleteAllProjects, fetchProjects } = useContext(ProjectContext);
+  const { projects, addProject, updateProject, deleteProject, deleteAllProjects, fetchProjects, addSameToSameProject } = useContext(ProjectContext);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -70,15 +70,18 @@ const ProjectsAdmin = () => {
     e.preventDefault();
     setError(null);
 
-    // Validate title
-    if (!title.trim()) {
-      setError('Title is required');
+    if (!file) {
+      setError('Please select an image');
       return;
     }
 
-    // Validate file
-    if (!file) {
-      setError('Please select an image to upload');
+    if (!title.trim()) {
+      setError('Please enter a title');
+      return;
+    }
+
+    if (!category.trim()) {
+      setError('Please enter a category');
       return;
     }
 
@@ -90,21 +93,20 @@ const ProjectsAdmin = () => {
       formData.append('title', title.trim());
       formData.append('description', description.trim() || `${title.trim()} - ${category.trim()} project by Chethan Jodidhar`);
       formData.append('category', category.trim());
-      formData.append('section', section);
+      formData.append('section', section || 'Featured');
       formData.append('completed', completed.toString());
       formData.append('year', new Date().getFullYear().toString());
       formData.append('image', file);
-      formData.append('link', link.trim());
 
       // Log form data for debugging
       console.log('Submitting form data:', {
         title: title.trim(),
         description: description.trim(),
         category: category.trim(),
-        section,
-        completed,
-        file: file.name,
-        link: link.trim()
+        section: section || 'Featured',
+        completed: completed.toString(),
+        year: new Date().getFullYear().toString(),
+        file: file.name
       });
 
       // Add the new project using the context function
@@ -126,7 +128,6 @@ const ProjectsAdmin = () => {
       setCompleted(false);
       setFile(null);
       setPreview('');
-      setLink('');
 
       // Clear success message after 3 seconds
       setTimeout(() => {
@@ -258,6 +259,21 @@ const ProjectsAdmin = () => {
     }
   };
 
+  const handleAddSameToSame = async () => {
+    try {
+      setLoading(true);
+      await addSameToSameProject();
+      setSuccess('Same To Same project added successfully!');
+      setTimeout(() => {
+        setSuccess('');
+      }, 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to add Same To Same project');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filter projects based on section
   const filteredProjects = filter === 'all'
     ? projects
@@ -265,44 +281,51 @@ const ProjectsAdmin = () => {
 
   // Helper function to get the full image URL
   const getImageUrl = (imageUrl) => {
-    if (!imageUrl) return '';
-    
+    if (!imageUrl) {
+      return '/placeholder.webp';
+    }
+
+    // If it's a Cloudinary URL, return it as is
+    if (imageUrl.includes('cloudinary.com')) {
+      return imageUrl;
+    }
+
     // If it's already an absolute URL, return it as is
     if (imageUrl.startsWith('http')) {
       return imageUrl;
     }
 
-    // If it's a relative URL starting with /uploads/, prefix with backend URL
-    if (imageUrl.startsWith('/uploads/') || imageUrl.includes('/uploads/')) {
+    // For local development with /uploads/ paths
+    if (imageUrl.startsWith('/uploads/')) {
       const backendUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:5000' 
         : 'https://backendchetan.onrender.com';
-      
-      // Clean up the path to ensure proper format
-      const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
-      return `${backendUrl}/uploads/${cleanPath}`;
+      return `${backendUrl}${imageUrl}`;
     }
 
-    // If it's just a filename, assume it's in uploads directory
-    const backendUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:5000' 
-      : 'https://backendchetan.onrender.com';
-    return `${backendUrl}/uploads/${imageUrl}`;
+    return '/placeholder.webp';
   };
 
   return (
     <AdminLayout>
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
-            Projects Management
-          </h1>
-          <button
-            onClick={handleResetAll}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            Reset All Projects
-          </button>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Projects Management</h1>
+          <div className="flex space-x-4">
+            <button
+              onClick={handleAddSameToSame}
+              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              disabled={loading}
+            >
+              {loading ? 'Adding...' : 'Add Same To Same'}
+            </button>
+            <button
+              onClick={handleResetAll}
+              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              Reset All Projects
+            </button>
+          </div>
         </div>
 
         {/* Upload Form */}
@@ -498,9 +521,10 @@ const ProjectsAdmin = () => {
                         alt={project.title}
                         className="h-48 w-full object-cover object-center"
                         onError={(e) => {
-                          console.error('Error loading image:', project.image);
+                          console.log('Image failed to load:', project.image);
                           e.target.src = '/placeholder.webp';
                         }}
+                        loading="lazy"
                       />
                       {project.completed && (
                         <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded-md text-xs">
@@ -516,14 +540,14 @@ const ProjectsAdmin = () => {
                     <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => handleEdit(project)}
-                        className="p-2 bg-blue-500 text-white rounded-full"
+                        className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         title="Edit"
                       >
                         <FaEdit />
                       </button>
                       <button
                         onClick={() => handleDelete(project._id)}
-                        className="p-2 bg-red-500 text-white rounded-full"
+                        className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
                         title="Delete"
                       >
                         <FaTrash />

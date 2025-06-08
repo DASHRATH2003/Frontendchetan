@@ -1,318 +1,233 @@
-// import React, { createContext, useState, useEffect } from 'react';
+// import React, { createContext, useState, useEffect, useCallback } from 'react';
 // import PropTypes from 'prop-types';
 // import axios from 'axios';
 
 // const GalleryContext = createContext();
 
-// // Base64 encoded placeholder image
-// const PLACEHOLDER_IMAGE = 'data:image/webp;base64,UklGRlIAAABXRUJQVlA4WAoAAAAQAAAAAAAAAAAAQUxQSAIAAAABBxAREYiI/gcAAABWUDggGAAAADABAJ0BKgEAAQABABwlpAADcAD+/gbQAA==';
-
 // export const GalleryProvider = ({ children }) => {
 //   const [gallery, setGallery] = useState([]);
 //   const [loading, setLoading] = useState(true);
 //   const [error, setError] = useState(null);
-//   const [processedUrls] = useState(new Map());
+//   const [pagination, setPagination] = useState({
+//     page: 1,
+//     limit: 20,
+//     total: 0,
+//     pages: 1
+//   });
 
-//   const getBackendUrl = () => {
-//     return import.meta.env.PROD
-//       ? 'https://backendchetan.onrender.com'
-//       : 'http://localhost:5000';
-//   };
+//   const backendUrl = import.meta.env.MODE === 'development' 
+//     ? 'http://localhost:5000'  // or whatever port your backend runs on
+//     : 'https://backendchetan.onrender.com';
 
-//   const processImageUrl = (imageUrl) => {
-//     if (!imageUrl) {
-//       console.log('No image URL provided');
-//       return PLACEHOLDER_IMAGE;
-//     }
-
-//     // Check cache first
-//     if (processedUrls.has(imageUrl)) {
-//       return processedUrls.get(imageUrl);
-//     }
-
-//     // If it's a Cloudinary URL, use it directly
-//     if (imageUrl.includes('cloudinary.com')) {
-//       processedUrls.set(imageUrl, imageUrl);
-//       return imageUrl;
-//     }
-
-//     // If it's already a full URL (including chethancinemas.com), use it
-//     if (imageUrl.startsWith('http')) {
-//       processedUrls.set(imageUrl, imageUrl);
-//       return imageUrl;
-//     }
-
-//     // For relative paths starting with /uploads/, construct the full URL
-//     if (imageUrl.startsWith('/uploads/')) {
-//       const fullUrl = `http://www.chethancinemas.com${imageUrl}`;
-//       processedUrls.set(imageUrl, fullUrl);
-//       return fullUrl;
-//     }
-
-//     // Default case: use the image URL as is
-//     processedUrls.set(imageUrl, imageUrl);
-//     return imageUrl;
-//   };
-
-//   // Function to fetch gallery with retry
-//   const fetchGalleryWithRetry = async (retries = 3, delay = 2000) => {
-//     let lastError;
-    
-//     for (let i = 0; i < retries; i++) {
-//       try {
-//         const backendUrl = getBackendUrl();
-//         console.log(`Attempt ${i + 1}/${retries} - Fetching gallery from:`, backendUrl);
-        
-//         const response = await axios.get(`${backendUrl}/api/gallery`, {
-//           headers: {
-//             'Accept': 'application/json',
-//             'Content-Type': 'application/json'
-//           },
-//           timeout: 10000 // 10 second timeout for production
-//         });
-
-//         if (!response.data) {
-//           throw new Error('No data received from API');
-//         }
-
-//         return response;
-//       } catch (err) {
-//         lastError = err;
-//         console.error(`Attempt ${i + 1} failed:`, {
-//           message: err.message,
-//           code: err.code,
-//           response: err.response?.data
-//         });
-        
-//         if (i === retries - 1) {
-//           break; // Last attempt failed
-//         }
-        
-//         // Wait before retrying
-//         await new Promise(resolve => setTimeout(resolve, delay));
-//       }
-//     }
-    
-//     // If we get here, all retries failed
-//     throw lastError;
-//   };
-
-//   // Function to fetch gallery data from backend
-//   const fetchGalleryFromBackend = async () => {
+//   const fetchGallery = useCallback(async (params = {}) => {
 //     try {
 //       setLoading(true);
 //       setError(null);
       
-//       const response = await fetchGalleryWithRetry();
-//       console.log('Raw API response:', response);
+//       const response = await axios.get(`${backendUrl}/api/gallery`, {
+//         params: {
+//           page: params.page || 1,
+//           limit: params.limit || 20,
+//           category: params.category,
+//           section: params.section,
+//           year: params.year,
+//           search: params.search
+//         },
+//         timeout: 10000
+//       });
 
-//       // Handle both the old array format and new object format
-//       let galleryData;
-//       if (Array.isArray(response.data)) {
-//         // Old format - direct array
-//         galleryData = response.data;
-//       } else if (response.data && response.data.success && Array.isArray(response.data.data)) {
-//         // New format - wrapped in success object
-//         galleryData = response.data.data;
-//       } else if (response.data && Array.isArray(response.data.gallery)) {
-//         // Alternative format
-//         galleryData = response.data.gallery;
-//       } else {
-//         console.error('Invalid gallery data format:', response.data);
-//         throw new Error('Invalid gallery data format received');
+//       if (!response.data || !response.data.success) {
+//         throw new Error(response.data?.message || 'Invalid response format');
 //       }
-      
-//       console.log('Gallery data received:', galleryData);
 
-//       // Process the gallery data
-//       const processedGallery = galleryData.map(item => {
-//         if (!item || typeof item !== 'object') {
-//           console.error('Invalid gallery item:', item);
-//           return null;
-//         }
-        
-//         // Use the Cloudinary URL if available, otherwise fall back to image path
-//         const imagePath = item.cloudinaryUrl || item.image || item.imageUrl || '';
-//         if (!imagePath) {
-//           console.error('Gallery item has no image path:', item);
-//           return null;
-//         }
-
-//         return {
-//           _id: item._id || item.id,
-//           title: item.title || 'Untitled',
-//           description: item.description || '',
-//           image: imagePath,
-//           imageUrl: processImageUrl(imagePath),
-//           alt: item.title || 'Gallery image',
-//           timestamp: item.createdAt || item.timestamp || Date.now()
-//         };
-//       }).filter(Boolean); // Remove any null items
-
-//       console.log('Final processed gallery items:', processedGallery);
-//       setGallery(processedGallery);
-//       setError(null);
+//       setGallery(response.data.data);
+//       setPagination({
+//         page: response.data.page,
+//         limit: response.data.limit,
+//         total: response.data.total,
+//         pages: response.data.pages
+//       });
 //     } catch (err) {
 //       console.error('Error fetching gallery:', err);
-//       const errorMessage = err.response?.data?.message || err.message || 'Failed to load gallery items';
-//       setError(errorMessage);
-//       setGallery([]); // Clear gallery on error
+//       setError(err.response?.data?.message || err.message || 'Failed to load gallery');
+//       setGallery([]);
 //     } finally {
 //       setLoading(false);
 //     }
-//   };
-
-//   // Initialize gallery data
-//   useEffect(() => {
-//     fetchGalleryFromBackend();
 //   }, []);
 
-//   // Add gallery item with better error handling
+//   useEffect(() => {
+//     fetchGallery();
+//   }, [fetchGallery]);
+
 //   const addGalleryItem = async (formData) => {
 //     try {
 //       setLoading(true);
 //       setError(null);
-//       const backendUrl = getBackendUrl();
+//       const token = localStorage.getItem('token');
 
-//       // Validate input
-//       const title = formData.get('title');
-//       const image = formData.get('image');
-
-//       if (!title) {
-//         throw new Error('Title is required');
-//       }
-
-//       if (!image || !(image instanceof File)) {
-//         throw new Error('Valid image file is required');
-//       }
-
-//       console.log('Uploading gallery item:', {
+//       // Log the formData contents for debugging (excluding the actual file data)
+//       console.log('FormData being sent:', {
 //         title: formData.get('title'),
 //         description: formData.get('description'),
-//         fileName: image.name,
-//         fileType: image.type,
-//         fileSize: image.size,
-//         backendUrl
+//         category: formData.get('category'),
+//         section: formData.get('section'),
+//         year: formData.get('year'),
+//         hasImage: formData.get('image') !== null
 //       });
 
-//       // Upload to backend
-//       const token = localStorage.getItem('token');
-//       console.log('Using auth token:', token ? 'Present' : 'Not present');
+//       // Add Cloudinary configuration to formData
+//       formData.append('cloud_name', 'dqspnxe8q');
 
 //       const response = await axios.post(`${backendUrl}/api/gallery`, formData, {
-//         headers: { 
+//         headers: {
 //           'Content-Type': 'multipart/form-data',
-//           'x-auth-token': token || '',
-//           'Accept': 'application/json'
+//           'x-auth-token': token,
+//           'x-cloudinary-cloud-name': 'dqspnxe8q'
 //         },
-//         withCredentials: true,
-//         timeout: 30000, // 30 second timeout
-//         validateStatus: null // Allow all status codes
+//         timeout: 30000,
+//         validateStatus: function (status) {
+//           return status < 500; // Resolve only if the status code is less than 500
+//         }
 //       });
 
-//       console.log('Upload response:', {
+//       // Log the complete response for debugging
+//       console.log('Server response:', {
 //         status: response.status,
-//         statusText: response.statusText,
 //         data: response.data,
 //         headers: response.headers
 //       });
 
-//       // Check if the response has the expected structure
-//       if (!response.data || !response.data.success || !response.data.data) {
-//         console.error('Invalid server response:', response.data);
-//         throw new Error(response.data?.message || 'Invalid response from server');
+//       if (!response.data.success) {
+//         // Handle specific error cases
+//         if (response.data.message?.includes('cloud_name')) {
+//           throw new Error('Cloudinary configuration error. Please check your Cloudinary settings: cloud_name=dqspnxe8q');
+//         } else if (response.status === 400) {
+//           throw new Error(response.data.message || 'Invalid request data');
+//         } else {
+//           throw new Error(response.data.message || 'Upload failed');
+//         }
 //       }
 
-//       // The server now provides the complete item with imageUrl
-//       const newItem = response.data.data;
-      
-//       // Add the new item to the local state immediately
-//       setGallery(prevItems => [newItem, ...prevItems]);
-
-//       setError(null);
+//       await fetchGallery();
 //       return {
 //         success: true,
-//         message: response.data.message || 'Image uploaded successfully',
-//         data: newItem
+//         data: response.data.data,
+//         message: response.data.message || 'Image uploaded successfully'
 //       };
 //     } catch (err) {
-//       console.error('Error adding gallery item:', {
+//       console.error('Upload error details:', {
 //         message: err.message,
-//         code: err.code,
 //         response: err.response?.data,
 //         status: err.response?.status,
-//         statusText: err.response?.statusText
+//         statusText: err.response?.statusText,
+//         config: {
+//           url: err.config?.url,
+//           method: err.config?.method,
+//           headers: err.config?.headers
+//         }
 //       });
 
-//       let errorMessage;
-//       if (err.code === 'ECONNABORTED') {
-//         errorMessage = 'Upload timed out. Please try again.';
-//       } else if (err.code === 'ERR_NETWORK') {
-//         errorMessage = 'Network error. Please check your connection and try again.';
-//       } else if (err.response?.status === 413) {
-//         errorMessage = 'Image file is too large. Maximum size is 5MB.';
+//       let errorMsg;
+//       if (err.response?.status === 400) {
+//         if (err.response?.data?.message?.includes('cloud_name')) {
+//           errorMsg = `Cloudinary configuration error. Current cloud_name: dqspnxe8q. Please verify server settings.`;
+//         } else if (err.response?.data?.message) {
+//           errorMsg = err.response.data.message;
+//         } else {
+//           errorMsg = 'Invalid request data. Please check your input and try again.';
+//         }
+//       } else if (err.code === 'ECONNABORTED') {
+//         errorMsg = 'Upload timed out. Please try again.';
+//       } else if (!err.response) {
+//         errorMsg = 'Network error. Please check your connection and try again.';
 //       } else {
-//         errorMessage = err.response?.data?.message || err.message || 'Failed to add gallery item';
+//         errorMsg = err.message || 'Failed to upload image';
 //       }
 
-//       setError(errorMessage);
-//       throw new Error(errorMessage);
+//       setError(errorMsg);
+//       throw new Error(errorMsg);
 //     } finally {
 //       setLoading(false);
 //     }
 //   };
 
-//   // Delete gallery item
+//   const updateGalleryItem = async (id, updates) => {
+//     try {
+//       setLoading(true);
+//       setError(null);
+//       const token = localStorage.getItem('token');
+
+//       const response = await axios.put(`${backendUrl}/api/gallery/${id}`, updates, {
+//         headers: {
+//           'x-auth-token': token
+//         }
+//       });
+
+//       if (!response.data.success) {
+//         throw new Error(response.data.message || 'Update failed');
+//       }
+
+//       await fetchGallery();
+//       return {
+//         success: true,
+//         data: response.data.data,
+//         message: response.data.message || 'Item updated successfully'
+//       };
+//     } catch (err) {
+//       console.error('Update error:', err);
+//       const errorMsg = err.response?.data?.message || err.message || 'Update failed';
+//       setError(errorMsg);
+//       throw new Error(errorMsg);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
 //   const deleteGalleryItem = async (id) => {
 //     try {
 //       setLoading(true);
 //       setError(null);
-//       const backendUrl = getBackendUrl();
+//       const token = localStorage.getItem('token');
 
-//       await axios.delete(`${backendUrl}/api/gallery/${id}`);
+//       const response = await axios.delete(`${backendUrl}/api/gallery/${id}`, {
+//         headers: {
+//           'x-auth-token': token
+//         }
+//       });
 
-//       // Refresh the gallery after deletion
-//       await fetchGalleryFromBackend();
-//       setError(null);
-//     } catch (error) {
-//       console.error('Error deleting gallery item:', error);
-//       const errorMessage = error.response?.data?.message || error.message || 'Failed to delete gallery item';
-//       setError(errorMessage);
-//       throw new Error(errorMessage);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
+//       if (!response.data.success) {
+//         throw new Error(response.data.message || 'Deletion failed');
+//       }
 
-//   // Delete all gallery items
-//   const deleteAllGalleryItems = async () => {
-//     try {
-//       setLoading(true);
-//       const backendUrl = getBackendUrl();
-
-//       await axios.delete(`${backendUrl}/api/gallery/all`);
-//       setGallery([]); // Clear the local state
-//       setError(null);
-//     } catch (error) {
-//       console.error('Error deleting all gallery items:', error);
-//       setError('Failed to delete all gallery items');
-//       throw error;
+//       await fetchGallery();
+//       return {
+//         success: true,
+//         message: response.data.message || 'Item deleted successfully'
+//       };
+//     } catch (err) {
+//       console.error('Deletion error:', err);
+//       const errorMsg = err.response?.data?.message || err.message || 'Deletion failed';
+//       setError(errorMsg);
+//       throw new Error(errorMsg);
 //     } finally {
 //       setLoading(false);
 //     }
 //   };
 
 //   return (
-//     <GalleryContext.Provider value={{
-//       gallery,
-//       loading,
-//       error,
-//       addGalleryItem,
-//       deleteGalleryItem,
-//       deleteAllGalleryItems,
-//       processImageUrl,
-//       refreshGallery: fetchGalleryFromBackend
-//     }}>
+//     <GalleryContext.Provider
+//       value={{
+//         gallery,
+//         loading,
+//         error,
+//         pagination,
+//         fetchGallery,
+//         addGalleryItem,
+//         updateGalleryItem,
+//         deleteGalleryItem
+//       }}
+//     >
 //       {children}
 //     </GalleryContext.Provider>
 //   );
@@ -323,13 +238,17 @@
 // };
 
 // export default GalleryContext;
-
-
+// src/context/GalleryContext.js
+// src/context/GalleryContext.js
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 
 const GalleryContext = createContext();
+
+// Valid categories and sections
+export const validCategories = ['events', 'movies', 'celebrations', 'awards', 'behind-the-scenes', 'other'];
+export const validSections = ['home', 'gallery', 'about', 'events'];
 
 export const GalleryProvider = ({ children }) => {
   const [gallery, setGallery] = useState([]);
@@ -342,31 +261,25 @@ export const GalleryProvider = ({ children }) => {
     pages: 1
   });
 
-  const getBackendUrl = () => {
-    return import.meta.env.PROD
-      ? 'https://backendchetan.onrender.com'
-      : 'http://localhost:5000';
-  };
+  const backendUrl = import.meta.env.MODE === 'development' 
+    ? 'http://localhost:5000'
+    : 'https://backendchetan.onrender.com';
 
   const fetchGallery = useCallback(async (params = {}) => {
     try {
       setLoading(true);
       setError(null);
       
-      // const backendUrl = getBackendUrl();
-      const response = await axios.get(`https://backendchetan.onrender.com/api/gallery`, {
+      const response = await axios.get(`${backendUrl}/api/gallery`, {
         params: {
           page: params.page || pagination.page,
           limit: params.limit || pagination.limit,
-          category: params.category,
-          section: params.section,
-          year: params.year,
-          search: params.search
+          ...params
         },
         timeout: 10000
       });
 
-      if (!response.data || !response.data.success) {
+      if (!response.data?.success) {
         throw new Error(response.data?.message || 'Invalid response format');
       }
 
@@ -377,52 +290,132 @@ export const GalleryProvider = ({ children }) => {
         total: response.data.total,
         pages: response.data.pages
       });
-      setError(null);
     } catch (err) {
-      console.error('Error fetching gallery:', err);
+      console.error('Gallery fetch error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to load gallery');
       setGallery([]);
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit]);
+  }, [backendUrl, pagination.page, pagination.limit]);
 
-  // Initial load
   useEffect(() => {
     fetchGallery();
   }, [fetchGallery]);
+
+  const validateGalleryItem = (formData) => {
+    const category = formData.get ? formData.get('category') : formData.category;
+    const section = formData.get ? formData.get('section') : formData.section;
+    
+    if (!category || category.trim() === '') {
+      throw new Error('Category is required. Please select a category.');
+    }
+
+    const normalizedCategory = category.toLowerCase().trim();
+    if (!validCategories.includes(normalizedCategory)) {
+      throw new Error(`Invalid category. Please select one of: ${validCategories.join(', ')}`);
+    }
+
+    if (!section || section.trim() === '') {
+      throw new Error('Section is required. Please select a section.');
+    }
+
+    const normalizedSection = section.toLowerCase().trim();
+    if (!validSections.includes(normalizedSection)) {
+      throw new Error(`Invalid section. Please select one of: ${validSections.join(', ')}`);
+    }
+
+    return true;
+  };
 
   const addGalleryItem = async (formData) => {
     try {
       setLoading(true);
       setError(null);
-      const backendUrl = getBackendUrl();
       const token = localStorage.getItem('token');
 
-      const response = await axios.post(`https://backendchetan.onrender.com/api/gallery`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'x-auth-token': token
-        },
-        timeout: 30000
-      });
-
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Upload failed');
+      if (!token) {
+        throw new Error('Authentication token not found. Please login again.');
       }
 
-      // Refresh the gallery
+      // Log FormData contents for debugging
+      const formDataDebug = {};
+      for (let [key, value] of formData.entries()) {
+        formDataDebug[key] = value instanceof File ? {
+          name: value.name,
+          type: value.type,
+          size: value.size
+        } : value;
+      }
+      console.log('Sending form data:', formDataDebug);
+
+      // Validate the form data
+      validateGalleryItem(formData);
+
+      const response = await axios.post(`${backendUrl}/api/gallery`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`,
+          'x-auth-token': token
+        },
+        timeout: 30000,
+        validateStatus: null // Allow any status code to handle errors manually
+      });
+
+      console.log('Server response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers
+      });
+
+      if (response.status === 400) {
+        throw new Error(response.data.message || 'Invalid request. Please check your input.');
+      }
+
+      if (response.status === 401) {
+        localStorage.removeItem('token'); // Clear invalid token
+        throw new Error('Authentication failed. Please login again.');
+      }
+
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+
+      if (!response.data || !response.data.success) {
+        throw new Error(response.data?.message || 'Upload failed');
+      }
+
       await fetchGallery();
-      return {
-        success: true,
-        data: response.data.data,
-        message: response.data.message || 'Image uploaded successfully'
-      };
+      return response.data;
     } catch (err) {
-      console.error('Upload error:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Upload failed';
+      console.error('Upload error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        headers: err.response?.headers,
+        stack: err.stack
+      });
+
+      let errorMsg;
+      if (err.response?.status === 400) {
+        errorMsg = err.response.data.message || 'Invalid request data. Please check all required fields.';
+      } else if (err.response?.status === 401) {
+        localStorage.removeItem('token'); // Clear invalid token
+        errorMsg = 'Authentication failed. Please login again.';
+      } else if (err.response?.status === 500) {
+        errorMsg = 'Server error. Please try again later.';
+      } else if (err.code === 'ECONNABORTED') {
+        errorMsg = 'Upload timed out. Please try again.';
+      } else if (!err.response) {
+        errorMsg = 'Network error. Please check your connection and try again.';
+      } else {
+        errorMsg = err.message || 'Failed to upload image';
+      }
+
       setError(errorMsg);
-      throw new Error(errorMsg);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -432,8 +425,16 @@ export const GalleryProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const backendUrl = getBackendUrl();
       const token = localStorage.getItem('token');
+
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      // Validate updates if category is being changed
+      if (updates.category) {
+        validateGalleryItem(updates);
+      }
 
       const response = await axios.put(`${backendUrl}/api/gallery/${id}`, updates, {
         headers: {
@@ -445,18 +446,13 @@ export const GalleryProvider = ({ children }) => {
         throw new Error(response.data.message || 'Update failed');
       }
 
-      // Refresh the gallery
       await fetchGallery();
-      return {
-        success: true,
-        data: response.data.data,
-        message: response.data.message || 'Item updated successfully'
-      };
+      return response.data;
     } catch (err) {
       console.error('Update error:', err);
       const errorMsg = err.response?.data?.message || err.message || 'Update failed';
       setError(errorMsg);
-      throw new Error(errorMsg);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -466,30 +462,71 @@ export const GalleryProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const backendUrl = getBackendUrl();
       const token = localStorage.getItem('token');
+
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+
+      console.log('Attempting to delete gallery item:', { id });
 
       const response = await axios.delete(`${backendUrl}/api/gallery/${id}`, {
         headers: {
+          'Authorization': `Bearer ${token}`,
           'x-auth-token': token
-        }
+        },
+        validateStatus: null // Allow any status code to handle errors manually
       });
 
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Deletion failed');
+      console.log('Delete response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      });
+
+      if (response.status === 404) {
+        throw new Error('Gallery item not found');
       }
 
-      // Refresh the gallery
+      if (response.status === 401) {
+        localStorage.removeItem('token'); // Clear invalid token
+        throw new Error('Authentication failed. Please login again.');
+      }
+
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+
+      if (!response.data || !response.data.success) {
+        throw new Error(response.data?.message || 'Deletion failed');
+      }
+
       await fetchGallery();
-      return {
-        success: true,
-        message: response.data.message || 'Item deleted successfully'
-      };
+      return response.data;
     } catch (err) {
-      console.error('Deletion error:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Deletion failed';
+      console.error('Deletion error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
+
+      let errorMsg;
+      if (err.response?.status === 404) {
+        errorMsg = 'Gallery item not found';
+      } else if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        errorMsg = 'Authentication failed. Please login again.';
+      } else if (err.response?.status === 500) {
+        errorMsg = 'Server error. Please try again later.';
+      } else if (!err.response) {
+        errorMsg = 'Network error. Please check your connection and try again.';
+      } else {
+        errorMsg = err.message || 'Failed to delete image';
+      }
+
       setError(errorMsg);
-      throw new Error(errorMsg);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -502,6 +539,8 @@ export const GalleryProvider = ({ children }) => {
         loading,
         error,
         pagination,
+        validCategories,
+        validSections,
         fetchGallery,
         addGalleryItem,
         updateGalleryItem,

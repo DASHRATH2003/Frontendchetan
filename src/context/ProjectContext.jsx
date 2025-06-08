@@ -22,26 +22,32 @@ export const ProjectProvider = ({ children }) => {
       : 'http://localhost:5000';
   }, []);
 
-  // Process image URL - memoized to prevent unnecessary recalculations
-  const processImageUrl = useMemo(() => (imageUrl) => {
+  // Helper function to get the full image URL
+  const getImageUrl = (imageUrl) => {
     if (!imageUrl) {
       return '/placeholder.webp';
     }
 
-    // If it's already a full URL, return it as is
+    // If it's a Cloudinary URL, return it as is
+    if (imageUrl.includes('cloudinary.com')) {
+      return imageUrl;
+    }
+
+    // If it's already an absolute URL, return it as is
     if (imageUrl.startsWith('http')) {
       return imageUrl;
     }
 
-    // Clean up the path and ensure it starts with /uploads/
-    const cleanPath = imageUrl.replace(/^\/+/, '').replace(/^uploads\//, '');
-    const finalPath = `/uploads/${cleanPath}`;
+    // For local development with /uploads/ paths
+    if (imageUrl.startsWith('/uploads/')) {
+      const backendUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : 'https://backendchetan.onrender.com';
+      return `${backendUrl}${imageUrl}`;
+    }
 
-    // Always use HTTPS for production backend
-    const finalUrl = `${backendUrl}${finalPath}`;
-    
-    return finalUrl;
-  }, [backendUrl]);
+    return '/placeholder.webp';
+  };
 
   // Fetch projects
   const fetchProjects = async () => {
@@ -55,19 +61,16 @@ export const ProjectProvider = ({ children }) => {
         throw new Error('Invalid response format');
       }
 
-      // Process the projects data with stable URLs
+      // Process the projects data
       const processedProjects = projectsData.map(project => {
         if (!project || typeof project !== 'object') {
           console.error('Invalid project item:', project);
           return null;
         }
 
-        // Use the memoized processImageUrl function
-        const imageUrl = processImageUrl(project.image);
-        
         return {
           ...project,
-          imageUrl // Store the processed URL
+          imageUrl: getImageUrl(project.image)
         };
       }).filter(Boolean);
 
@@ -83,53 +86,34 @@ export const ProjectProvider = ({ children }) => {
     }
   };
 
-  // Add project with better error handling
-  const addProject = async (formData) => {
+  // Add project
+  const addProject = async (projectData) => {
     try {
       setLoading(true);
-      setError(null);
+      const formData = new FormData();
+      formData.append('title', projectData.title);
+      formData.append('description', projectData.description);
+      formData.append('image', projectData.image);
+      formData.append('completed', projectData.completed);
 
-      // Validate input
-      const title = formData.get('title');
-      const image = formData.get('image');
-
-      if (!title) {
-        throw new Error('Title is required');
-      }
-
-      if (!image || !(image instanceof File)) {
-        throw new Error('Valid image file is required');
-      }
-
-      // Upload to backend
       const response = await axios.post(`${backendUrl}/api/projects`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      // Validate response
-      if (!response.data || !response.data._id || !response.data.image) {
-        console.error('Invalid server response:', response.data);
-        throw new Error('Invalid response from server - missing required fields');
-      }
-
-      // Process the new project with stable URL
       const newProject = {
         ...response.data,
-        imageUrl: processImageUrl(response.data.image)
+        imageUrl: getImageUrl(response.data.image)
       };
-      
-      // Update state with the new project
-      setProjects(prevProjects => [newProject, ...prevProjects]);
-      
-      setError(null);
-      return newProject;
-    } catch (err) {
-      console.error('Error adding project:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to add project';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
+
+      setProjects([...projects, newProject]);
       setLoading(false);
+      return response.data;
+    } catch (error) {
+      setLoading(false);
+      console.error('Error adding project:', error);
+      throw error;
     }
   };
 
@@ -154,7 +138,7 @@ export const ProjectProvider = ({ children }) => {
       // Process the updated project with stable URL
       const updatedProject = {
         ...response.data,
-        imageUrl: processImageUrl(response.data.image)
+        imageUrl: getImageUrl(response.data.image)
       };
 
       // Update the projects list with the new data
@@ -195,6 +179,53 @@ export const ProjectProvider = ({ children }) => {
     }
   };
 
+  // Add Same To Same project
+  const addSameToSameProject = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get the image from the gallery
+      const imageResponse = await fetch(`${backendUrl}/uploads/gallery/1749376234661-620282039.jpeg`);
+      const imageBlob = await imageResponse.blob();
+      const imageFile = new File([imageBlob], 'project-clothnearya.jpeg', { type: 'image/jpeg' });
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('title', 'Same To Same');
+      formData.append('description', 'Same To Same - A captivating advertisement for Clothnearya');
+      formData.append('category', 'Advertisement');
+      formData.append('section', 'Featured');
+      formData.append('completed', 'true');
+      formData.append('year', new Date().getFullYear().toString());
+      formData.append('image', imageFile);
+
+      // Upload to backend
+      const response = await axios.post(`${backendUrl}/api/projects`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      // Process the new project with stable URL
+      const newProject = {
+        ...response.data.data,
+        imageUrl: getImageUrl(response.data.data.image)
+      };
+      
+      // Update state with the new project
+      setProjects(prevProjects => [newProject, ...prevProjects]);
+      
+      setError(null);
+      return newProject;
+    } catch (err) {
+      console.error('Error adding Same To Same project:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to add project';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch projects on mount
   useEffect(() => {
     fetchProjects();
@@ -209,7 +240,8 @@ export const ProjectProvider = ({ children }) => {
     deleteProject,
     deleteAllProjects,
     fetchProjects,
-    processImageUrl
+    getImageUrl,
+    addSameToSameProject
   };
 
   return (

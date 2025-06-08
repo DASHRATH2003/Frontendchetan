@@ -1,595 +1,13 @@
-// import React, { useState, useEffect, useContext } from 'react';
-// import { FaUpload, FaTrash, FaImage, FaEdit, FaTimes, FaSync } from 'react-icons/fa';
-// import AdminLayout from './AdminLayout';
-// import GalleryContext from '../../context/GalleryContext';
-
-// const GalleryAdmin = () => {
-//   const {
-//     gallery,
-//     loading: contextLoading,
-//     addGalleryItem,
-//     deleteGalleryItem,
-//     deleteAllGalleryItems,
-//     refreshGallery,
-//     processImageUrl
-//   } = useContext(GalleryContext);
-
-//   const [images, setImages] = useState([]);
-//   const [title, setTitle] = useState('');
-//   const [description, setDescription] = useState('');
-//   const [category, setCategory] = useState('');
-//   const [year, setYear] = useState(new Date().getFullYear().toString());
-//   const [file, setFile] = useState(null);
-//   const [preview, setPreview] = useState('');
-//   const [uploading, setUploading] = useState(false);
-//   const [error, setError] = useState(null);
-//   const [success, setSuccess] = useState('');
-//   const [resetting, setResetting] = useState(false);
-
-//   // Edit mode state
-//   const [editMode, setEditMode] = useState(false);
-//   const [editingImage, setEditingImage] = useState(null);
-//   const [editTitle, setEditTitle] = useState('');
-//   const [editDescription, setEditDescription] = useState('');
-
-//   // Update local images when gallery changes
-//   useEffect(() => {
-//     if (gallery && Array.isArray(gallery)) {
-//       setImages(gallery);
-//     }
-//   }, [gallery]);
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-
-//     try {
-//       setUploading(true);
-//       setError(null);
-//       setSuccess('');
-
-//       if (!file) {
-//         setError('Please select an image to upload');
-//         return;
-//       }
-
-//       if (!title.trim()) {
-//         setError('Please enter a title');
-//         return;
-//       }
-
-//       // Create FormData
-//       const formData = new FormData();
-//       formData.append('title', title.trim());
-//       formData.append('description', description.trim());
-//       formData.append('category', category.trim());
-//       formData.append('year', year);
-//       formData.append('image', file);
-
-//       // Upload image
-//       const result = await addGalleryItem(formData);
-      
-//       if (result.success) {
-//         // Clear form
-//         setTitle('');
-//         setDescription('');
-//         setCategory('');
-//         setYear(new Date().getFullYear().toString());
-//         setFile(null);
-//         setPreview('');
-//         setSuccess('Image uploaded successfully!');
-        
-//         // Clear success message after 3 seconds
-//         setTimeout(() => {
-//           setSuccess('');
-//         }, 3000);
-//       }
-//     } catch (err) {
-//       console.error('Upload error:', err);
-//       setError(err.message || 'Failed to upload image');
-//     } finally {
-//       setUploading(false);
-//     }
-//   };
-
-//   const handleFileChange = (e) => {
-//     const selectedFile = e.target.files[0];
-//     if (!selectedFile) {
-//       setFile(null);
-//       setPreview('');
-//       return;
-//     }
-
-//     // Validate file type
-//     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-//     if (!validTypes.includes(selectedFile.type)) {
-//       setError('Please select a valid image file (JPEG, JPG, PNG, GIF, or WebP)');
-//       setFile(null);
-//       setPreview('');
-//       return;
-//     }
-
-//     // Validate file size (5MB)
-//     if (selectedFile.size > 5 * 1024 * 1024) {
-//       setError('Image file is too large. Maximum size is 5MB.');
-//       setFile(null);
-//       setPreview('');
-//       return;
-//     }
-
-//     setFile(selectedFile);
-//     setError(null);
-
-//     // Create preview
-//     const reader = new FileReader();
-//     reader.onloadend = () => {
-//       setPreview(reader.result);
-//     };
-//     reader.onerror = () => {
-//       setError('Error reading file');
-//       setFile(null);
-//       setPreview('');
-//     };
-//     reader.readAsDataURL(selectedFile);
-//   };
-
-//   const handleDelete = async (id) => {
-//     if (!window.confirm('Are you sure you want to delete this image?')) {
-//       return;
-//     }
-
-//     try {
-//       setUploading(true);
-//       await deleteGalleryItem(id);
-//       setSuccess('Image deleted successfully!');
-
-//       setTimeout(() => {
-//         setSuccess('');
-//       }, 3000);
-//     } catch (err) {
-//       setError('Failed to delete image');
-//       console.error(err);
-//     } finally {
-//       setUploading(false);
-//     }
-//   };
-
-//   const handleEdit = (image) => {
-//     setEditingImage(image);
-//     setEditTitle(image.title);
-//     setEditDescription(image.description || '');
-//     setEditMode(true);
-//   };
-
-//   const handleCancelEdit = () => {
-//     setEditMode(false);
-//     setEditingImage(null);
-//     setEditTitle('');
-//     setEditDescription('');
-//   };
-
-//   const handleResetGallery = async () => {
-//     if (!window.confirm('Are you sure you want to reset the gallery? This will clear all gallery data.')) {
-//       return;
-//     }
-
-//     try {
-//       setResetting(true);
-//       setError(null);
-
-//       await deleteAllGalleryItems();
-//       await refreshGallery();
-
-//       setSuccess('Gallery has been reset successfully!');
-//       setTimeout(() => setSuccess(''), 3000);
-//     } catch (err) {
-//       console.error('Reset error:', err);
-//       setError('Failed to reset gallery');
-//     } finally {
-//       setResetting(false);
-//     }
-//   };
-
-//   const handleUpdateImage = async (e) => {
-//     e.preventDefault();
-
-//     if (!editingImage) return;
-
-//     try {
-//       setUploading(true);
-//       setError(null);
-
-//       // Update using context function
-//       await addGalleryItem({
-//         _id: editingImage._id,
-//         title: editTitle,
-//         description: editDescription
-//       });
-
-//       setSuccess('Image updated successfully!');
-//       handleCancelEdit();
-
-//       // Clear success message after 3 seconds
-//       setTimeout(() => {
-//         setSuccess('');
-//       }, 3000);
-//     } catch (err) {
-//       setError('Failed to update image');
-//       console.error(err);
-//     } finally {
-//       setUploading(false);
-//     }
-//   };
-
-//   const handleResetAll = async () => {
-//     if (!window.confirm('Are you sure you want to delete ALL gallery items? This cannot be undone!')) {
-//       return;
-//     }
-
-//     try {
-//       setUploading(true);
-//       await deleteAllGalleryItems();
-//       setSuccess('All gallery items deleted successfully!');
-
-//       setTimeout(() => {
-//         setSuccess('');
-//       }, 3000);
-//     } catch (err) {
-//       setError('Failed to delete all gallery items');
-//       console.error(err);
-//     } finally {
-//       setUploading(false);
-//     }
-//   };
-
-//   // Function to handle image load errors
-//   const handleImageError = (e) => {
-//     const imgElement = e.target;
-//     const originalSrc = imgElement.src;
-    
-//     // Only try to reload once
-//     if (!imgElement.dataset.retried) {
-//       console.log('Retrying image load:', originalSrc);
-//       imgElement.dataset.retried = 'true';
-//       // Try reloading the image
-//       imgElement.src = originalSrc;
-//     } else {
-//       console.error('Image failed to load after retry:', originalSrc);
-//       // Use data URL for placeholder
-//       imgElement.src = 'data:image/webp;base64,UklGRlIAAABXRUJQVlA4WAoAAAAQAAAAAAAAAAAAQUxQSAIAAAABBxAREYiI/gcAAABWUDggGAAAADABAJ0BKgEAAQABABwlpAADcAD+/gbQAA==';
-//       // Add error class for styling
-//       imgElement.classList.add('image-load-error');
-//     }
-//   };
-
-//   return (
-//     <AdminLayout>
-//       <div className="container mx-auto px-4">
-//         <div className="flex justify-between items-center mb-6">
-//           <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
-//             Gallery Management
-//           </h1>
-//           <button
-//             onClick={handleResetAll}
-//             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-//           >
-//             Reset All Gallery
-//           </button>
-//         </div>
-
-//         {/* Upload Form */}
-//         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
-//           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-//             Upload New Image
-//           </h2>
-
-//           {error && (
-//             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-//               <span className="block sm:inline">{error}</span>
-//             </div>
-//           )}
-
-//           {success && (
-//             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-//               <span className="block sm:inline">{success}</span>
-//             </div>
-//           )}
-
-//           <form onSubmit={handleSubmit} className="space-y-4">
-//             <div>
-//               <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-//                 Title
-//               </label>
-//               <input
-//                 type="text"
-//                 id="title"
-//                 value={title}
-//                 onChange={(e) => setTitle(e.target.value)}
-//                 required
-//                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-//               />
-//             </div>
-
-//             <div>
-//               <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-//                 Description (optional)
-//               </label>
-//               <textarea
-//                 id="description"
-//                 value={description}
-//                 onChange={(e) => setDescription(e.target.value)}
-//                 rows="3"
-//                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-//               ></textarea>
-//             </div>
-
-//             <div>
-//               <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-//                 Category
-//               </label>
-//               <input
-//                 type="text"
-//                 id="category"
-//                 value={category}
-//                 onChange={(e) => setCategory(e.target.value)}
-//                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-//               />
-//             </div>
-
-//             <div>
-//               <label htmlFor="year" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-//                 Year
-//               </label>
-//               <input
-//                 type="text"
-//                 id="year"
-//                 value={year}
-//                 onChange={(e) => setYear(e.target.value)}
-//                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-//               />
-//             </div>
-
-//             <div>
-//               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-//                 Image
-//               </label>
-//               <div className="mt-1 flex items-center">
-//                 <label className="relative cursor-pointer bg-white dark:bg-gray-700 rounded-md font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500 focus-within:outline-none">
-//                   <span className="flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md">
-//                     <FaUpload className="mr-2" />
-//                     Select Image
-//                   </span>
-//                   <input
-//                     id="file-upload"
-//                     name="file-upload"
-//                     type="file"
-//                     className="sr-only"
-//                     accept="image/*"
-//                     onChange={handleFileChange}
-//                   />
-//                 </label>
-//                 <p className="pl-3 text-sm text-gray-500 dark:text-gray-400">
-//                   {file ? file.name : 'No file selected'}
-//                 </p>
-//               </div>
-//               <p className="mt-1 text-sm text-gray-500">
-//                 Supported formats: JPG, PNG, WebP, AVIF. Max size: 5MB
-//               </p>
-//             </div>
-
-//             {preview && (
-//               <div className="mt-2">
-//                 <p className="text-sm text-gray-500 dark:text-gray-400">Preview:</p>
-//                 <img
-//                   src={preview}
-//                   alt="Preview"
-//                   className="mt-2 h-64 w-auto object-cover rounded-md"
-//                 />
-//               </div>
-//             )}
-
-//             <div>
-//               <button
-//                 type="submit"
-//                 disabled={uploading || !file}
-//                 className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-//               >
-//                 {uploading ? (
-//                   <>
-//                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-//                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-//                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-//                     </svg>
-//                     Uploading...
-//                   </>
-//                 ) : (
-//                   'Upload Image'
-//                 )}
-//               </button>
-//             </div>
-//           </form>
-//         </div>
-
-//         {/* Gallery Images */}
-//         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-//           <div className="flex justify-between items-center mb-4">
-//             <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-//               Gallery Images
-//             </h2>
-//             <button
-//               onClick={handleResetGallery}
-//               disabled={resetting}
-//               className="flex items-center px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-//             >
-//               <FaSync className={`mr-2 ${resetting ? 'animate-spin' : ''}`} />
-//               {resetting ? 'Resetting...' : 'Reset Gallery'}
-//             </button>
-//           </div>
-
-//           {contextLoading ? (
-//             <div className="flex items-center justify-center py-8">
-//               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-//             </div>
-//           ) : images.length > 0 ? (
-//             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-//               {images.map((image) => (
-//                 <div key={image._id} className="relative group">
-//                   <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
-//                     <img
-//                       src={image.imageUrl || processImageUrl(image.image)}
-//                       alt={image.title}
-//                       className="h-72 w-full object-cover object-center"
-//                       onError={handleImageError}
-//                     />
-//                   </div>
-//                   <div className="mt-2">
-//                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">{image.title}</h3>
-//                     {image.description && (
-//                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{image.description}</p>
-//                     )}
-//                   </div>
-//                   <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-//                     <button
-//                       onClick={() => handleEdit(image)}
-//                       className="p-2 bg-blue-500 text-white rounded-full"
-//                       title="Edit"
-//                     >
-//                       <FaEdit />
-//                     </button>
-//                     <button
-//                       onClick={() => handleDelete(image._id)}
-//                       className="p-2 bg-red-500 text-white rounded-full"
-//                       title="Delete"
-//                     >
-//                       <FaTrash />
-//                     </button>
-//                   </div>
-//                 </div>
-//               ))}
-//             </div>
-//           ) : (
-//             <div className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
-//               <FaImage className="text-4xl mb-2" />
-//               <p>No gallery images found. Upload your first image!</p>
-//             </div>
-//           )}
-//         </div>
-
-//         {/* Edit Modal */}
-//         {editMode && editingImage && (
-//           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-//             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6">
-//               <div className="flex justify-between items-center mb-4">
-//                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-//                   Edit Gallery Image
-//                 </h3>
-//                 <button
-//                   onClick={handleCancelEdit}
-//                   className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
-//                 >
-//                   <FaTimes className="text-xl" />
-//                 </button>
-//               </div>
-
-//               {error && (
-//                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-//                   <span className="block sm:inline">{error}</span>
-//                 </div>
-//               )}
-
-//               <form onSubmit={handleUpdateImage} className="space-y-4">
-//                 <div>
-//                   <label htmlFor="editTitle" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-//                     Title
-//                   </label>
-//                   <input
-//                     type="text"
-//                     id="editTitle"
-//                     value={editTitle}
-//                     onChange={(e) => setEditTitle(e.target.value)}
-//                     required
-//                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-//                   />
-//                 </div>
-
-//                 <div>
-//                   <label htmlFor="editDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-//                     Description (optional)
-//                   </label>
-//                   <textarea
-//                     id="editDescription"
-//                     value={editDescription}
-//                     onChange={(e) => setEditDescription(e.target.value)}
-//                     rows="3"
-//                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-//                   ></textarea>
-//                 </div>
-
-//                 <div className="mt-2">
-//                   <p className="text-sm text-gray-500 dark:text-gray-400">Current Image:</p>
-//                   <img
-//                     src={editingImage.imageUrl}
-//                     alt={editingImage.title}
-//                     className="mt-2 h-64 w-auto object-cover rounded-md"
-//                   />
-//                 </div>
-
-//                 <div className="flex justify-end space-x-3 mt-6">
-//                   <button
-//                     type="button"
-//                     onClick={handleCancelEdit}
-//                     className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-500"
-//                   >
-//                     Cancel
-//                   </button>
-//                   <button
-//                     type="submit"
-//                     disabled={uploading}
-//                     className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-//                   >
-//                     {uploading ? (
-//                       <>
-//                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-//                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-//                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-//                         </svg>
-//                         Updating...
-//                       </>
-//                     ) : (
-//                       'Update Image'
-//                     )}
-//                   </button>
-//                 </div>
-//               </form>
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//     </AdminLayout>
-//   );
-// };
-
-// export default GalleryAdmin;
-
-
-import React, { useState, useEffect, useContext } from 'react';
-import { 
-  FaUpload, 
-  FaTrash, 
-  FaEdit, 
-  FaTimes, 
-  FaSync, 
-  FaSearch,
-  FaFilter
-} from 'react-icons/fa';
+import React, { useState, useContext, useEffect } from 'react';
+import { FaSearch, FaFilter } from 'react-icons/fa';
 import AdminLayout from './AdminLayout';
-import GalleryContext from '../../context/GalleryContext';
+import GalleryContext, { validCategories, validSections } from '../../context/GalleryContext';
 import ImagePreview from '../ui/ImagePreview';
 
 const GalleryAdmin = () => {
   const {
     gallery,
     loading,
-    error,
     pagination,
     fetchGallery,
     addGalleryItem,
@@ -597,95 +15,136 @@ const GalleryAdmin = () => {
     deleteGalleryItem
   } = useContext(GalleryContext);
 
-  // Form state
-  const [formData, setFormData] = useState({
+  const [error, setError] = useState(null);
+  const initialFormState = {
     title: '',
     description: '',
     category: '',
-    section: '',
+    section: 'gallery',
     year: new Date().getFullYear().toString(),
     image: null
-  });
+  };
+  const [formData, setFormData] = useState(initialFormState);
   const [preview, setPreview] = useState('');
-
-  // Filter state
   const [filters, setFilters] = useState({
     search: '',
     category: '',
     section: '',
     year: ''
   });
-
-  // Edit state
   const [editingId, setEditingId] = useState(null);
 
-  // Handle form input changes
+  useEffect(() => {
+    fetchGallery();
+  }, [fetchGallery]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+    setError(null);
   };
 
-  // Handle file selection
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-
-    // Validate file
-    if (!file.type.match('image.*')) {
-      alert('Please select an image file');
+    if (!file) {
+      setFormData(prev => ({ ...prev, image: null }));
+      setPreview('');
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Please select a valid image file (JPEG, PNG, WebP, or GIF)');
       return;
     }
 
-    setFormData(prev => ({
-      ...prev,
-      image: file
-    }));
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError('Image file is too large. Maximum size is 5MB');
+      return;
+    }
 
-    // Create preview
     const reader = new FileReader();
-    reader.onload = () => setPreview(reader.result);
+    reader.onloadend = () => {
+      setPreview(reader.result);
+    };
     reader.readAsDataURL(file);
+
+    setFormData(prev => ({ ...prev, image: file }));
+    setError(null);
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     
     try {
-      const data = new FormData();
-      data.append('title', formData.title);
-      data.append('description', formData.description);
-      data.append('category', formData.category);
-      data.append('section', formData.section);
-      data.append('year', formData.year);
-      data.append('image', formData.image);
+      console.log('Current form state:', formData);
 
-      await addGalleryItem(data);
+      if (!formData.title.trim()) {
+        setError('Title is required');
+        return;
+      }
+
+      if (!formData.category.trim()) {
+        setError('Please select a category');
+        return;
+      }
+
+      if (!formData.section || !validSections.includes(formData.section)) {
+        setError(`Section must be one of: ${validSections.join(', ')}`);
+        return;
+      }
+
+      if (!formData.image) {
+        setError('Image file is required');
+        return;
+      }
+
+      const data = new FormData();
       
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        section: '',
-        year: new Date().getFullYear().toString(),
-        image: null
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          if (key === 'image') {
+            data.append(key, formData[key]);
+          } else {
+            data.append(key, formData[key].toString().trim());
+          }
+        }
       });
-      setPreview('');
+
+      console.log('FormData contents:');
+      for (let [key, value] of data.entries()) {
+        console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
+      }
+
+      const result = await addGalleryItem(data);
+      
+      if (result.success) {
+        setFormData(initialFormState);
+        setPreview('');
+        setError(null);
+      }
     } catch (err) {
-      console.error('Upload failed:', err);
+      console.error('Upload failed:', {
+        error: err,
+        message: err.message,
+        formData: {
+          ...formData,
+          image: formData.image ? {
+            name: formData.image.name,
+            type: formData.image.type,
+            size: formData.image.size
+          } : null
+        }
+      });
+      setError(err.message || 'Failed to upload image. Please try again.');
     }
   };
 
-  // Handle edit
   const handleEdit = (item) => {
     setEditingId(item._id);
     setFormData({
@@ -696,13 +155,23 @@ const GalleryAdmin = () => {
       year: item.year,
       image: null
     });
+    setPreview(item.imageUrl);
   };
 
-  // Handle update
   const handleUpdate = async (e) => {
     e.preventDefault();
     
     try {
+      if (!formData.category) {
+        setError('Category is required');
+        return;
+      }
+
+      if (!validCategories.includes(formData.category)) {
+        setError(`Invalid category. Must be one of: ${validCategories.join(', ')}`);
+        return;
+      }
+
       await updateGalleryItem(editingId, {
         title: formData.title,
         description: formData.description,
@@ -712,40 +181,30 @@ const GalleryAdmin = () => {
       });
       
       setEditingId(null);
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        section: '',
-        year: new Date().getFullYear().toString(),
-        image: null
-      });
+      setFormData(initialFormState);
       setPreview('');
     } catch (err) {
-      console.error('Update failed:', err);
+      setError(err.message);
     }
   };
 
-  // Handle delete
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this item?')) return;
     
     try {
       await deleteGalleryItem(id);
     } catch (err) {
-      console.error('Deletion failed:', err);
+      setError(err.message);
     }
   };
 
-  // Apply filters
   const applyFilters = () => {
     fetchGallery({
       ...filters,
-      page: 1 // Reset to first page when filters change
+      page: 1
     });
   };
 
-  // Reset filters
   const resetFilters = () => {
     setFilters({
       search: '',
@@ -756,13 +215,60 @@ const GalleryAdmin = () => {
     fetchGallery();
   };
 
-  // Pagination controls
   const handlePageChange = (newPage) => {
     fetchGallery({
       ...filters,
       page: newPage
     });
   };
+
+  const categoryField = (
+    <div>
+      <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        Category *
+      </label>
+      <select
+        id="category"
+        name="category"
+        value={formData.category}
+        onChange={handleInputChange}
+        required
+        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+      >
+        <option value="">Select a category</option>
+        {validCategories.map(cat => (
+          <option key={cat} value={cat}>
+            {cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, ' ')}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const sectionField = (
+    <div>
+      <label htmlFor="section" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        Section *
+      </label>
+      <select
+        id="section"
+        name="section"
+        value={formData.section}
+        onChange={handleInputChange}
+        required
+        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+      >
+        {validSections.map(section => (
+          <option key={section} value={section}>
+            {section.charAt(0).toUpperCase() + section.slice(1)}
+          </option>
+        ))}
+      </select>
+      <p className="mt-1 text-xs text-gray-500">
+        Current section: {formData.section}
+      </p>
+    </div>
+  );
 
   return (
     <AdminLayout>
@@ -774,6 +280,12 @@ const GalleryAdmin = () => {
           <h2 className="text-xl font-semibold mb-4">
             {editingId ? 'Edit Gallery Item' : 'Upload New Image'}
           </h2>
+          
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+              {error}
+            </div>
+          )}
           
           <form onSubmit={editingId ? handleUpdate : handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -791,36 +303,18 @@ const GalleryAdmin = () => {
               
               <div>
                 <label className="block text-sm font-medium mb-1">Description</label>
-                <input
-                  type="text"
+                <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
                   className="w-full p-2 border rounded"
+                  rows="3"
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Category</label>
-                <input
-                  type="text"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
+              {categoryField}
               
-              <div>
-                <label className="block text-sm font-medium mb-1">Section</label>
-                <input
-                  type="text"
-                  name="section"
-                  value={formData.section}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
+              {sectionField}
               
               <div>
                 <label className="block text-sm font-medium mb-1">Year</label>
@@ -836,24 +330,13 @@ const GalleryAdmin = () => {
               {!editingId && (
                 <div>
                   <label className="block text-sm font-medium mb-1">Image *</label>
-                  <div className="flex items-center">
-                    <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded border">
-                      <FaUpload className="inline mr-2" />
-                      Select Image
-                      <input
-                        type="file"
-                        name="image"
-                        onChange={handleFileChange}
-                        accept="image/*"
-                        className="hidden"
-                        required={!editingId}
-                      />
-                    </label>
-                    {formData.image && (
-                      <span className="ml-2 text-sm">{formData.image.name}</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Max 5MB (JPEG, PNG, WebP)</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="w-full p-2 border rounded"
+                    required={!editingId}
+                  />
                 </div>
               )}
             </div>
@@ -870,14 +353,7 @@ const GalleryAdmin = () => {
                   type="button"
                   onClick={() => {
                     setEditingId(null);
-                    setFormData({
-                      title: '',
-                      description: '',
-                      category: '',
-                      section: '',
-                      year: new Date().getFullYear().toString(),
-                      image: null
-                    });
+                    setFormData(initialFormState);
                     setPreview('');
                   }}
                   className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
@@ -917,12 +393,20 @@ const GalleryAdmin = () => {
             
             <div>
               <label className="block text-sm font-medium mb-1">Category</label>
-              <input
-                type="text"
+              <select
                 value={filters.category}
                 onChange={(e) => setFilters({...filters, category: e.target.value})}
                 className="w-full p-2 border rounded"
-              />
+              >
+                <option value="">All Categories</option>
+                {validCategories.map(cat => (
+                  <option key={cat} value={cat}>
+                    {cat.split('-').map(word => 
+                      word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ')}
+                  </option>
+                ))}
+              </select>
             </div>
             
             <div>
@@ -963,92 +447,75 @@ const GalleryAdmin = () => {
         </div>
         
         {/* Gallery Items */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Gallery Items</h2>
-            <button
-              onClick={() => fetchGallery()}
-              disabled={loading}
-              className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-            >
-              <FaSync className={`inline mr-1 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          </div>
-          
-          {error && (
-            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-              {error}
-            </div>
-          )}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4">Gallery Items</h2>
           
           {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
+            <div className="text-center py-4">Loading...</div>
           ) : gallery.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No gallery items found
-            </div>
+            <div className="text-center py-4">No gallery items found.</div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {gallery.map((item) => (
-                  <div key={item._id} className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="relative">
-                      <ImagePreview 
-                        src={item.imageUrl} 
-                        alt={item.title}
-                        className="w-full h-48 object-cover"
-                      />
-                      <div className="absolute top-2 right-2 flex space-x-1 opacity-0 hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
-                          title="Edit"
-                        >
-                          <FaEdit size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item._id)}
-                          className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
-                          title="Delete"
-                        >
-                          <FaTrash size={14} />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <h3 className="font-semibold truncate">{item.title}</h3>
-                      {item.description && (
-                        <p className="text-sm text-gray-600 truncate">{item.description}</p>
-                      )}
-                      <div className="flex justify-between text-xs text-gray-500 mt-2">
-                        <span>{item.category}</span>
-                        <span>{item.year}</span>
-                      </div>
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {gallery.map(item => (
+                <div key={item._id} className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden shadow">
+                  <div className="aspect-w-16 aspect-h-9">
+                    <img 
+                      src={item.imageUrl} 
+                      alt={item.title}
+                      className="object-cover w-full h-full"
+                    />
                   </div>
-                ))}
-              </div>
-              
-              {/* Pagination */}
-              {pagination.pages > 1 && (
-                <div className="flex justify-center mt-6">
-                  <div className="flex space-x-1">
-                    {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(page => (
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">{item.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-100 rounded text-xs">
+                        {item.category}
+                      </span>
+                      <span className="px-2 py-1 bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-100 rounded text-xs">
+                        {item.section}
+                      </span>
+                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-800 dark:text-gray-100 rounded text-xs">
+                        {item.year}
+                      </span>
+                    </div>
+                    <div className="flex justify-end gap-2">
                       <button
-                        key={page}
-                        onClick={() => handlePageChange(page)}
-                        className={`px-3 py-1 rounded ${pagination.page === page ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                        onClick={() => handleEdit(item)}
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                       >
-                        {page}
+                        Edit
                       </button>
-                    ))}
+                      <button
+                        onClick={() => handleDelete(item._id)}
+                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-              )}
-            </>
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination.pages > 1 && (
+            <div className="flex justify-center mt-6 gap-2">
+              {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-1 rounded ${
+                    page === pagination.page
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </div>
