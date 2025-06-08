@@ -4,32 +4,31 @@ import ProjectContext from '../../context/ProjectContext';
 import AdminLayout from './AdminLayout';
 
 const ProjectsAdmin = () => {
-  const { projects, addProject, updateProject, deleteProject, deleteAllProjects, fetchProjects, addSameToSameProject } = useContext(ProjectContext);
+  const {
+    projects,
+    addProject,
+    updateProject,
+    deleteProject,
+    deleteAllProjects,
+    addSameToSameProject
+  } = useContext(ProjectContext);
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [section, setSection] = useState('Banner');
   const [completed, setCompleted] = useState(false);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState('');
-  const [link, setLink] = useState('');
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [filter, setFilter] = useState('all');
-
-  // Edit mode state
   const [editMode, setEditMode] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
   const [editCategory, setEditCategory] = useState('');
-  const [editSection, setEditSection] = useState('');
   const [editCompleted, setEditCompleted] = useState(false);
   const [editFile, setEditFile] = useState(null);
   const [editPreview, setEditPreview] = useState('');
-  const [editLink, setEditLink] = useState('');
 
   useEffect(() => {
     // Projects are already loaded from the ProjectContext
@@ -68,63 +67,35 @@ const ProjectsAdmin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-
+    
     if (!file) {
-      setError('Please select an image');
-      return;
-    }
-
-    if (!title.trim()) {
-      setError('Please enter a title');
-      return;
-    }
-
-    if (!category.trim()) {
-      setError('Please enter a category');
+      setError('Please select an image file');
       return;
     }
 
     try {
       setUploading(true);
+      setError(null);
 
       // Create form data for the upload
       const formData = new FormData();
       formData.append('title', title.trim());
-      formData.append('description', description.trim() || `${title.trim()} - ${category.trim()} project by Chethan Jodidhar`);
       formData.append('category', category.trim());
-      formData.append('section', section || 'Featured');
       formData.append('completed', completed.toString());
       formData.append('year', new Date().getFullYear().toString());
       formData.append('image', file);
-
-      // Log form data for debugging
-      console.log('Submitting form data:', {
-        title: title.trim(),
-        description: description.trim(),
-        category: category.trim(),
-        section: section || 'Featured',
-        completed: completed.toString(),
-        year: new Date().getFullYear().toString(),
-        file: file.name
-      });
 
       // Add the new project using the context function
       const response = await addProject(formData);
 
       if (!response || !response._id) {
-        throw new Error('Failed to add project - invalid response from server');
+        throw new Error('Failed to add project');
       }
-
-      // Refresh the projects list
-      await fetchProjects();
 
       // Reset form on success
       setSuccess('Project added successfully!');
       setTitle('');
-      setDescription('');
       setCategory('');
-      setSection('Banner');
       setCompleted(false);
       setFile(null);
       setPreview('');
@@ -169,12 +140,9 @@ const ProjectsAdmin = () => {
   const handleEdit = (project) => {
     setEditingProject(project);
     setEditTitle(project.title);
-    setEditDescription(project.description || '');
     setEditCategory(project.category || '');
-    setEditSection(project.section || 'Banner');
     setEditCompleted(project.completed || false);
     setEditPreview(project.imageUrl);
-    setEditLink(project.link || '');
     setEditFile(null);
     setEditMode(true);
   };
@@ -183,13 +151,10 @@ const ProjectsAdmin = () => {
     setEditMode(false);
     setEditingProject(null);
     setEditTitle('');
-    setEditDescription('');
     setEditCategory('');
-    setEditSection('Banner');
     setEditCompleted(false);
     setEditFile(null);
     setEditPreview('');
-    setEditLink('');
   };
 
   const handleUpdateProject = async (e) => {
@@ -204,12 +169,9 @@ const ProjectsAdmin = () => {
       // Create form data for the upload
       const formData = new FormData();
       formData.append('title', editTitle);
-      formData.append('description', editDescription || `${editTitle} - ${editCategory} project by Chethan Jodidhar`);
       formData.append('category', editCategory);
-      formData.append('section', editSection);
       formData.append('completed', editCompleted);
       formData.append('year', editingProject.year || new Date().getFullYear().toString());
-      formData.append('link', editLink.trim());
 
       // If there's a new file, append it
       if (editFile) {
@@ -359,16 +321,6 @@ const ProjectsAdmin = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea
-                value={editMode ? editDescription : description}
-                onChange={editMode ? (e) => setEditDescription(e.target.value) : (e) => setDescription(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                rows="3"
-              />
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-gray-700">Category</label>
               <input
                 type="text"
@@ -376,31 +328,6 @@ const ProjectsAdmin = () => {
                 onChange={editMode ? (e) => setEditCategory(e.target.value) : (e) => setCategory(e.target.value)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Section</label>
-              <select
-                value={editMode ? editSection : section}
-                onChange={editMode ? (e) => setEditSection(e.target.value) : (e) => setSection(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              >
-                <option value="Banner">Banner</option>
-                <option value="Featured">Featured</option>
-                <option value="Regular">Regular</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editMode ? editCompleted : completed}
-                  onChange={editMode ? (e) => setEditCompleted(e.target.checked) : (e) => setCompleted(e.target.checked)}
-                  className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Completed</span>
-              </label>
             </div>
 
             <div>
@@ -429,16 +356,15 @@ const ProjectsAdmin = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Project Link (Optional)
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={editMode ? editCompleted : completed}
+                  onChange={editMode ? (e) => setEditCompleted(e.target.checked) : (e) => setCompleted(e.target.checked)}
+                  className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+                <span className="ml-2 text-sm text-gray-700">Completed</span>
               </label>
-              <input
-                type="url"
-                value={editMode ? editLink : link}
-                onChange={editMode ? (e) => setEditLink(e.target.value) : (e) => setLink(e.target.value)}
-                placeholder="https://example.com"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              />
             </div>
 
             {preview && (
@@ -535,7 +461,6 @@ const ProjectsAdmin = () => {
                     <div className="mt-2">
                       <h3 className="text-sm font-medium text-gray-900 dark:text-white">{project.title}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{project.category}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">Section: {project.section}</p>
                     </div>
                     <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button

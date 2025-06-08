@@ -107,7 +107,6 @@ const GalleryPageSection2 = () => {
             {item.title && (
               <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <h3 className="text-sm font-medium">{item.title}</h3>
-                {item.description && <p className="text-xs mt-1">{item.description}</p>}
               </div>
             )}
           </div>
@@ -135,9 +134,6 @@ const GalleryPageSection2 = () => {
             </div>
             <div className="absolute bottom-4 left-0 right-0 text-center text-white">
               <h3 className="text-lg font-medium">{gallery[currentIndex].title}</h3>
-              {gallery[currentIndex].description && (
-                <p className="text-sm mt-1 max-w-md mx-auto">{gallery[currentIndex].description}</p>
-              )}
             </div>
             <button
               className="absolute top-4 right-4 text-white bg-gray-700 bg-opacity-50 hover:bg-opacity-75 rounded-full w-10 h-10 flex items-center justify-center transition-colors duration-200"

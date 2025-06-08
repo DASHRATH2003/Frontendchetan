@@ -1,38 +1,24 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { FaSearch, FaFilter } from 'react-icons/fa';
 import AdminLayout from './AdminLayout';
-import GalleryContext, { validCategories, validSections } from '../../context/GalleryContext';
-import ImagePreview from '../ui/ImagePreview';
+import GalleryContext, { validCategories } from '../../context/GalleryContext';
 
 const GalleryAdmin = () => {
   const {
     gallery,
-    loading,
-    pagination,
     fetchGallery,
     addGalleryItem,
-    updateGalleryItem,
     deleteGalleryItem
   } = useContext(GalleryContext);
 
   const [error, setError] = useState(null);
   const initialFormState = {
     title: '',
-    description: '',
     category: '',
-    section: 'gallery',
     year: new Date().getFullYear().toString(),
     image: null
   };
   const [formData, setFormData] = useState(initialFormState);
   const [preview, setPreview] = useState('');
-  const [filters, setFilters] = useState({
-    search: '',
-    category: '',
-    section: '',
-    year: ''
-  });
-  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     fetchGallery();
@@ -82,8 +68,6 @@ const GalleryAdmin = () => {
     setError(null);
     
     try {
-      console.log('Current form state:', formData);
-
       if (!formData.title.trim()) {
         setError('Title is required');
         return;
@@ -91,11 +75,6 @@ const GalleryAdmin = () => {
 
       if (!formData.category.trim()) {
         setError('Please select a category');
-        return;
-      }
-
-      if (!formData.section || !validSections.includes(formData.section)) {
-        setError(`Section must be one of: ${validSections.join(', ')}`);
         return;
       }
 
@@ -116,11 +95,6 @@ const GalleryAdmin = () => {
         }
       });
 
-      console.log('FormData contents:');
-      for (let [key, value] of data.entries()) {
-        console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
-      }
-
       const result = await addGalleryItem(data);
       
       if (result.success) {
@@ -129,62 +103,8 @@ const GalleryAdmin = () => {
         setError(null);
       }
     } catch (err) {
-      console.error('Upload failed:', {
-        error: err,
-        message: err.message,
-        formData: {
-          ...formData,
-          image: formData.image ? {
-            name: formData.image.name,
-            type: formData.image.type,
-            size: formData.image.size
-          } : null
-        }
-      });
-      setError(err.message || 'Failed to upload image. Please try again.');
-    }
-  };
-
-  const handleEdit = (item) => {
-    setEditingId(item._id);
-    setFormData({
-      title: item.title,
-      description: item.description,
-      category: item.category,
-      section: item.section,
-      year: item.year,
-      image: null
-    });
-    setPreview(item.imageUrl);
-  };
-
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    
-    try {
-      if (!formData.category) {
-        setError('Category is required');
-        return;
-      }
-
-      if (!validCategories.includes(formData.category)) {
-        setError(`Invalid category. Must be one of: ${validCategories.join(', ')}`);
-        return;
-      }
-
-      await updateGalleryItem(editingId, {
-        title: formData.title,
-        description: formData.description,
-        category: formData.category,
-        section: formData.section,
-        year: formData.year
-      });
-      
-      setEditingId(null);
-      setFormData(initialFormState);
-      setPreview('');
-    } catch (err) {
-      setError(err.message);
+      console.error('Upload failed:', err);
+      setError(err.message || 'Failed to add gallery item');
     }
   };
 
@@ -198,325 +118,121 @@ const GalleryAdmin = () => {
     }
   };
 
-  const applyFilters = () => {
-    fetchGallery({
-      ...filters,
-      page: 1
-    });
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      search: '',
-      category: '',
-      section: '',
-      year: ''
-    });
-    fetchGallery();
-  };
-
-  const handlePageChange = (newPage) => {
-    fetchGallery({
-      ...filters,
-      page: newPage
-    });
-  };
-
-  const categoryField = (
-    <div>
-      <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        Category *
-      </label>
-      <select
-        id="category"
-        name="category"
-        value={formData.category}
-        onChange={handleInputChange}
-        required
-        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-      >
-        <option value="">Select a category</option>
-        {validCategories.map(cat => (
-          <option key={cat} value={cat}>
-            {cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, ' ')}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-
-  const sectionField = (
-    <div>
-      <label htmlFor="section" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        Section *
-      </label>
-      <select
-        id="section"
-        name="section"
-        value={formData.section}
-        onChange={handleInputChange}
-        required
-        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-      >
-        {validSections.map(section => (
-          <option key={section} value={section}>
-            {section.charAt(0).toUpperCase() + section.slice(1)}
-          </option>
-        ))}
-      </select>
-      <p className="mt-1 text-xs text-gray-500">
-        Current section: {formData.section}
-      </p>
-    </div>
-  );
-
   return (
     <AdminLayout>
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Gallery Management</h1>
-        
-        {/* Upload/Edit Form */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">
-            {editingId ? 'Edit Gallery Item' : 'Upload New Image'}
-          </h2>
-          
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-              {error}
-            </div>
-          )}
-          
-          <form onSubmit={editingId ? handleUpdate : handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Title *</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                  rows="3"
-                />
-              </div>
-              
-              {categoryField}
-              
-              {sectionField}
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Year</label>
-                <input
-                  type="text"
-                  name="year"
-                  value={formData.year}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-              
-              {!editingId && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Image *</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="w-full p-2 border rounded"
-                    required={!editingId}
-                  />
-                </div>
-              )}
-            </div>
-            
-            {preview && (
-              <div className="mb-4">
-                <ImagePreview src={preview} alt="Preview" className="max-h-64" />
-              </div>
-            )}
-            
-            <div className="flex justify-end space-x-2">
-              {editingId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingId(null);
-                    setFormData(initialFormState);
-                    setPreview('');
-                  }}
-                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              )}
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? 'Processing...' : editingId ? 'Update' : 'Upload'}
-              </button>
-            </div>
-          </form>
-        </div>
-        
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Filters</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Gallery Management</h1>
+
+        {/* Add Gallery Item Form */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Add New Gallery Item</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Search</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => setFilters({...filters, search: e.target.value})}
-                  className="w-full p-2 border rounded pl-8"
-                />
-                <FaSearch className="absolute left-2 top-3 text-gray-400" />
-              </div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Title *
+              </label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                required
+              />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-medium mb-1">Category</label>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Category *
+              </label>
               <select
-                value={filters.category}
-                onChange={(e) => setFilters({...filters, category: e.target.value})}
-                className="w-full p-2 border rounded"
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                required
               >
-                <option value="">All Categories</option>
+                <option value="">Select a category</option>
                 {validCategories.map(cat => (
                   <option key={cat} value={cat}>
-                    {cat.split('-').map(word => 
-                      word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(' ')}
+                    {cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, ' ')}
                   </option>
                 ))}
               </select>
             </div>
-            
+
             <div>
-              <label className="block text-sm font-medium mb-1">Section</label>
+              <label htmlFor="image" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Image *
+              </label>
               <input
-                type="text"
-                value={filters.section}
-                onChange={(e) => setFilters({...filters, section: e.target.value})}
-                className="w-full p-2 border rounded"
+                type="file"
+                id="image"
+                name="image"
+                onChange={handleFileChange}
+                accept="image/*"
+                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:text-gray-400 dark:file:bg-gray-700 dark:file:text-gray-300"
+                required
               />
             </div>
-            
+
+            {preview && (
+              <div className="mt-4">
+                <img src={preview} alt="Preview" className="h-32 w-auto object-cover rounded-lg" />
+              </div>
+            )}
+
+            {error && (
+              <div className="text-red-500 text-sm">
+                {error}
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm font-medium mb-1">Year</label>
-              <input
-                type="text"
-                value={filters.year}
-                onChange={(e) => setFilters({...filters, year: e.target.value})}
-                className="w-full p-2 border rounded"
-              />
+              <button
+                type="submit"
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+              >
+                Add Gallery Item
+              </button>
             </div>
-          </div>
-          
-          <div className="flex justify-end space-x-2">
-            <button
-              onClick={resetFilters}
-              className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-            >
-              Reset
-            </button>
-            <button
-              onClick={applyFilters}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              <FaFilter className="inline mr-1" /> Apply
-            </button>
-          </div>
+          </form>
         </div>
-        
-        {/* Gallery Items */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Gallery Items</h2>
-          
-          {loading ? (
-            <div className="text-center py-4">Loading...</div>
-          ) : gallery.length === 0 ? (
-            <div className="text-center py-4">No gallery items found.</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {gallery.map(item => (
-                <div key={item._id} className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden shadow">
-                  <div className="aspect-w-16 aspect-h-9">
-                    <img 
-                      src={item.imageUrl} 
-                      alt={item.title}
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">{item.description}</p>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-100 rounded text-xs">
-                        {item.category}
-                      </span>
-                      <span className="px-2 py-1 bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-100 rounded text-xs">
-                        {item.section}
-                      </span>
-                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-800 dark:text-gray-100 rounded text-xs">
-                        {item.year}
-                      </span>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item._id)}
-                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                      >
-                        Delete
-                      </button>
-                    </div>
+
+        {/* Gallery Items Grid */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Gallery Items</h2>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {gallery.map((item) => (
+              <div key={item._id} className="relative bg-white dark:bg-gray-700 rounded-lg shadow overflow-hidden">
+                <div className="aspect-w-3 aspect-h-2">
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = '/placeholder.webp';
+                    }}
+                    loading="lazy"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">{item.title}</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.category}</p>
+                  <div className="mt-4 flex justify-end space-x-2">
+                    <button
+                      onClick={() => handleDelete(item._id)}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 dark:text-red-100 dark:bg-red-800 dark:hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {pagination.pages > 1 && (
-            <div className="flex justify-center mt-6 gap-2">
-              {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-1 rounded ${
-                    page === pagination.page
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </AdminLayout>

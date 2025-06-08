@@ -244,11 +244,10 @@ import React, { createContext, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 
-const GalleryContext = createContext();
-
-// Valid categories and sections
+// Valid categories
 export const validCategories = ['events', 'movies', 'celebrations', 'awards', 'behind-the-scenes', 'other'];
-export const validSections = ['home', 'gallery', 'about', 'events'];
+
+const GalleryContext = createContext();
 
 export const GalleryProvider = ({ children }) => {
   const [gallery, setGallery] = useState([]);
@@ -304,117 +303,55 @@ export const GalleryProvider = ({ children }) => {
   }, [fetchGallery]);
 
   const validateGalleryItem = (formData) => {
-    const category = formData.get ? formData.get('category') : formData.category;
-    const section = formData.get ? formData.get('section') : formData.section;
-    
-    if (!category || category.trim() === '') {
-      throw new Error('Category is required. Please select a category.');
+    const title = formData.get('title');
+    if (!title || !title.trim()) {
+      throw new Error('Title is required');
     }
 
-    const normalizedCategory = category.toLowerCase().trim();
-    if (!validCategories.includes(normalizedCategory)) {
-      throw new Error(`Invalid category. Please select one of: ${validCategories.join(', ')}`);
+    const category = formData.get('category');
+    if (!category || !category.trim()) {
+      throw new Error('Category is required');
     }
 
-    if (!section || section.trim() === '') {
-      throw new Error('Section is required. Please select a section.');
+    if (!validCategories.includes(category)) {
+      throw new Error(`Invalid category. Must be one of: ${validCategories.join(', ')}`);
     }
 
-    const normalizedSection = section.toLowerCase().trim();
-    if (!validSections.includes(normalizedSection)) {
-      throw new Error(`Invalid section. Please select one of: ${validSections.join(', ')}`);
+    const image = formData.get('image');
+    if (!image || !(image instanceof File)) {
+      throw new Error('Image file is required');
     }
-
-    return true;
   };
 
   const addGalleryItem = async (formData) => {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        throw new Error('Authentication token not found. Please login again.');
-      }
-
-      // Log FormData contents for debugging
-      const formDataDebug = {};
-      for (let [key, value] of formData.entries()) {
-        formDataDebug[key] = value instanceof File ? {
-          name: value.name,
-          type: value.type,
-          size: value.size
-        } : value;
-      }
-      console.log('Sending form data:', formDataDebug);
 
       // Validate the form data
       validateGalleryItem(formData);
 
       const response = await axios.post(`${backendUrl}/api/gallery`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`,
-          'x-auth-token': token
-        },
-        timeout: 30000,
-        validateStatus: null // Allow any status code to handle errors manually
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
-      console.log('Server response:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: response.data,
-        headers: response.headers
-      });
-
-      if (response.status === 400) {
-        throw new Error(response.data.message || 'Invalid request. Please check your input.');
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to add gallery item');
       }
 
-      if (response.status === 401) {
-        localStorage.removeItem('token'); // Clear invalid token
-        throw new Error('Authentication failed. Please login again.');
-      }
-
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-
-      if (!response.data || !response.data.success) {
-        throw new Error(response.data?.message || 'Upload failed');
-      }
-
+      // Refresh the gallery list
       await fetchGallery();
-      return response.data;
+
+      return {
+        success: true,
+        data: response.data.data
+      };
     } catch (err) {
-      console.error('Upload error:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        headers: err.response?.headers,
-        stack: err.stack
-      });
-
-      let errorMsg;
-      if (err.response?.status === 400) {
-        errorMsg = err.response.data.message || 'Invalid request data. Please check all required fields.';
-      } else if (err.response?.status === 401) {
-        localStorage.removeItem('token'); // Clear invalid token
-        errorMsg = 'Authentication failed. Please login again.';
-      } else if (err.response?.status === 500) {
-        errorMsg = 'Server error. Please try again later.';
-      } else if (err.code === 'ECONNABORTED') {
-        errorMsg = 'Upload timed out. Please try again.';
-      } else if (!err.response) {
-        errorMsg = 'Network error. Please check your connection and try again.';
-      } else {
-        errorMsg = err.message || 'Failed to upload image';
-      }
-
-      setError(errorMsg);
+      console.error('Upload error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to add gallery item';
+      setError(errorMessage);
       throw err;
     } finally {
       setLoading(false);
@@ -540,7 +477,6 @@ export const GalleryProvider = ({ children }) => {
         error,
         pagination,
         validCategories,
-        validSections,
         fetchGallery,
         addGalleryItem,
         updateGalleryItem,

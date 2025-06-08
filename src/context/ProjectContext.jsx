@@ -87,33 +87,56 @@ export const ProjectProvider = ({ children }) => {
   };
 
   // Add project
-  const addProject = async (projectData) => {
+  const addProject = async (formData) => {
     try {
       setLoading(true);
-      const formData = new FormData();
-      formData.append('title', projectData.title);
-      formData.append('description', projectData.description);
-      formData.append('image', projectData.image);
-      formData.append('completed', projectData.completed);
+      setError(null);
 
+      // Validate input
+      if (!formData.get('title')) {
+        throw new Error('Title is required');
+      }
+
+      if (!formData.get('category')) {
+        throw new Error('Category is required');
+      }
+
+      const image = formData.get('image');
+      if (!image || !(image instanceof File)) {
+        throw new Error('Valid image file is required');
+      }
+
+      // Upload to backend
       const response = await axios.post(`${backendUrl}/api/projects`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
-      const newProject = {
-        ...response.data,
-        imageUrl: getImageUrl(response.data.image)
-      };
+      // Validate response
+      if (!response.data || !response.data.success || !response.data.data) {
+        console.error('Invalid server response:', response.data);
+        throw new Error('Invalid response from server');
+      }
 
-      setProjects([...projects, newProject]);
+      // Use the new project data from the nested response
+      const newProject = {
+        ...response.data.data,
+        imageUrl: getImageUrl(response.data.data.image)
+      };
+      
+      // Update state with the new project
+      setProjects(prevProjects => [newProject, ...prevProjects]);
+      
+      setError(null);
+      return newProject;
+    } catch (err) {
+      console.error('Error adding project:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to add project';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
       setLoading(false);
-      return response.data;
-    } catch (error) {
-      setLoading(false);
-      console.error('Error adding project:', error);
-      throw error;
     }
   };
 
